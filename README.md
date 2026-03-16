@@ -1,58 +1,73 @@
-# aegis-confidential-concierge
+# Aegis Confidential Concierge (ACC)
 
-	
+A privacy-first, autonomous procurement agent for businesses. Built on **Celo** and powered by the **Power 7** integration stack, Aegis ensures maximum product impact and engineering defensibility for automated agentic commerce.
 
-A modern Celo blockchain application built with Next.js, TypeScript, and Turborepo.
+## 🚀 Vision
 
-## Getting Started
+Aegis enables businesses to delegate complex procurement and search tasks to a trusted autonomous agent. By combining ZK-identity, verifiable commitments, and private reasoning, Aegis creates a secure bridge between natural language negotiations and on-chain settlement.
 
-1. Install dependencies:
-   ```bash
-   pnpm install
-   ```
+## ⚡ The Power 7 Stack
 
-2. Start the development server:
-   ```bash
-   pnpm dev
-   ```
+- **Venice AI**: Private reasoning and confidential negotiation strategy.
+- **Celo Mainnet**: High-speed, low-cost settlement layer.
+- **Self Protocol**: ZK-Humanity and OFAC compliance gating via ZK-ID.
+- **EAS (Ethereum Attestation Service)**: Transparent, on-chain deal anchoring.
+- **MetaMask (ERC-7715)**: Secure budget delegation and CFO master control.
+- **Protocol Labs (ERC-8004)**: Standardized Trustless Agent Identity.
+- **Locus & AgentCash**: Autonomous vendor discovery and search tools.
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+## 🔗 Live Implementation (Celo Mainnet)
 
-## Project Structure
+The core infrastructure is live on Celo:
 
-This is a monorepo managed by Turborepo with the following structure:
+| Contract               | Address                                      |
+| ---------------------- | -------------------------------------------- |
+| **AegisAgentRegistry** | `0xf6A298be1F9997B05A089526116D8F4BDD38b31c` |
+| **AegisEscrow**        | `0xa2F6a0c88F8708532967F7541405d30818455460` |
 
-- `apps/web` - Next.js application with embedded UI components and utilities
-- `apps/hardhat` - Smart contract development environment
+---
 
-## Available Scripts
+## 🛠 Getting Started
 
-- `pnpm dev` - Start development servers
-- `pnpm build` - Build all packages and apps
-- `pnpm lint` - Lint all packages and apps
-- `pnpm type-check` - Run TypeScript type checking
+### 1. Prerequisites
 
-### Smart Contract Scripts
+- **Node.js** (v18+)
+- **pnpm** (v8+)
+- **Celo Mainnet Account** (with cUSD/USDC)
 
-- `pnpm contracts:compile` - Compile smart contracts
-- `pnpm contracts:test` - Run smart contract tests
-- `pnpm contracts:deploy` - Deploy contracts to local network
-- `pnpm contracts:deploy:celo-sepolia` - Deploy to Celo Sepolia Testnet
-- `pnpm contracts:deploy:celo` - Deploy to Celo Mainnet
+### 2. Setup
 
-## Tech Stack
+```bash
+# Install dependencies
+pnpm install
 
-- **Framework**: Next.js 14 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
-- **Smart Contracts**: Hardhat with Viem
-- **Monorepo**: Turborepo
-- **Package Manager**: PNPM
+# Build the system
+pnpm build
+```
 
-## Learn More
+### 3. Smart Contract Management
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Celo Documentation](https://docs.celo.org/)
-- [Turborepo Documentation](https://turbo.build/repo/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
+```bash
+# Navigate to contracts
+cd apps/contracts
+
+# Run tests
+pnpm test
+
+# Deploy to Celo Mainnet (Ignition)
+pnpm deploy:celo
+```
+
+## 🏗 Project Structure
+
+- `apps/agent` - Node.js Agent Core (Venice AI & Reasoning)
+- `apps/contracts` - Aegis Smart Contracts (Security Audited)
+- `apps/web` - CFO Management Dashboard (React)
+
+## ⚖️ Governance
+
+Aegis is owned by the **CFO Master ID**. The CFO must verify their humanity via Self Protocol to activate the agent. All funds are held in the `AegisEscrow` and only released upon successful deal verification.
+
+---
+
+_Built for the Celo "Power 7" Hackathon._
