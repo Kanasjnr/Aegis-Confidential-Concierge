@@ -70,15 +70,15 @@ export default function Dashboard() {
                     <CardContent className="space-y-4">
                         <div className="p-4 border border-white/5 rounded-lg bg-black/40 space-y-2">
                             <div className="flex justify-between items-center text-xs">
-                                <span className="text-primary font-mono uppercase">Thought #128</span>
+                                <span className="text-primary font-mono uppercase">Reasoning Node #128</span>
                                 <span className="text-muted-foreground">3m ago</span>
                             </div>
                             <p className="text-sm italic text-muted-foreground">
-                                "Securing a 10% discount on monthly cloud hosting. Volume commitment strategy drafted via Venice AI."
+                                "Securing a 10% discount on monthly cloud hosting. Strategic volume commitment drafted via Aegis Intelligence."
                             </p>
                             <div className="pt-2 flex gap-2">
                                 <span className="px-2 py-0.5 rounded text-[10px] bg-primary/20 text-primary border border-primary/30 font-mono">EIP-712 SIGNED</span>
-                                <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/10 text-green-500 border border-green-500/30 font-mono">VERIFIED</span>
+                                <span className="px-2 py-0.5 rounded text-[10px] bg-green-500/10 text-green-500 border border-green-500/30 font-mono">ENCRYPTED</span>
                             </div>
                         </div>
 
