@@ -7,6 +7,11 @@ A privacy-first, autonomous procurement agent for businesses. Built on **Celo** 
 Aegis enables businesses to delegate complex procurement and search tasks to a trusted autonomous agent. By combining ZK-identity, verifiable commitments, and private reasoning, Aegis creates a secure bridge between natural language negotiations and on-chain settlement.
 
 ## The Power 7 Stack
+##  Vision
+
+Aegis enables businesses to delegate complex procurement and search tasks to a trusted autonomous agent. By combining ZK-identity, verifiable commitments, and private reasoning, Aegis creates a secure bridge between natural language negotiations and on-chain settlement.
+
+##  The Power 7 Stack
 
 - **Venice AI**: Private reasoning and confidential negotiation strategy.
 - **Celo Mainnet**: High-speed, low-cost settlement layer.
@@ -17,6 +22,7 @@ Aegis enables businesses to delegate complex procurement and search tasks to a t
 - **Locus & AgentCash**: Autonomous vendor discovery and search tools.
 
 ## Live Implementation (Celo Mainnet)
+##  Live Implementation (Celo Mainnet)
 
 The core infrastructure is live on Celo:
 
@@ -65,6 +71,7 @@ pnpm deploy:celo
 - `apps/web` - CFO Management Dashboard (React)
 
 ## Governance
+##  Governance
 
 Aegis is owned by the **CFO Master ID**. The CFO must verify their humanity via Self Protocol to activate the agent. All funds are held in the `AegisEscrow` and only released upon successful deal verification.
 
