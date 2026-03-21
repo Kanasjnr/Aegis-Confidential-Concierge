@@ -1,0 +1,18 @@
+{
+  "network": "celo-sepolia",
+  "chainId": 11142220,
+  "rpcUrl": "https://forno.celo-sepolia.celo-testnet.org/",
+  "deployedAt": "2026-03-21T16:58:30.084Z",
+  "deployer": "0xa1599790B763E537bd15b5b912012e5Fb65491a3",
+  "addresses": {
+    "easSchemaRegistry": "0x2dcc4b4a0ae3b350dd2a0fa3deb6414236b03245",
+    "eas": "0xa9e5803aa416463521553882e2a026afff16ffac",
+    "trustedOracleArbiter": "0x5bcc3564f079c1094371de737682b935755b8062",
+    "erc20EscrowObligation": "0x07ae51c4848bbf627802a55c760b5f3b4db46e4c",
+    "erc20PaymentObligation": "0xddf39ccaab13f4c1584cce21846cab9be9b0382b",
+    "erc20BarterUtils": "0x9e9fa05d4a27b5df9cfa36bd846ffce5dbe18175",
+    "mockERC20A": "0x7c6c02b9c7588451e03e357dfd8c8724a22669c9",
+    "mockERC20B": "0x9f1c4ee5ab6caaeb3ba151fa58515c2cf54d218a",
+    "mockERC20C": "0xa0e79438632c071252fca3440ba3e0c31483a10b"
+  }
+}
