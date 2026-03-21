@@ -47,6 +47,25 @@ const ERC20_ESCROW_ABI = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'escrowId', type: 'uint256' }],
     outputs: []
+  },
+  {
+    name: 'Buy',
+    type: 'event',
+    inputs: [
+      { indexed: true, name: 'escrowId', type: 'uint256' },
+      { indexed: true, name: 'buyer', type: 'address' },
+      { indexed: false, name: 'arbiter', type: 'address' },
+      { indexed: false, name: 'token', type: 'address' },
+      { indexed: false, name: 'amount', type: 'uint256' }
+    ]
+  },
+  {
+    name: 'Fulfill',
+    type: 'event',
+    inputs: [
+      { indexed: true, name: 'escrowId', type: 'uint256' },
+      { indexed: false, name: 'fulfillment', type: 'bytes32' }
+    ]
   }
 ] as const;
 
@@ -142,8 +161,29 @@ export class ArkhaiService {
       eventName: 'Buy'
     });
     
-    // @ts-ignore
     return logs[0]?.args?.escrowId as bigint | undefined;
+  }
+
+  /**
+   * Watches for the Fulfill event for a specific escrowId
+   */
+  watchFulfillment(
+    publicClient: any,
+    escrowId: bigint,
+    onFulfill: (fulfillment: `0x${string}`) => void
+  ) {
+    return publicClient.watchEvent({
+      address: ARKHAI_ERC20_ESCROW_OBLIGATION,
+      abi: ERC20_ESCROW_ABI,
+      eventName: 'Fulfill',
+      args: { escrowId },
+      onLogs: (logs: any) => {
+        const fulfillment = logs[0]?.args?.fulfillment;
+        if (fulfillment) {
+          onFulfill(fulfillment);
+        }
+      }
+    });
   }
 }
 
