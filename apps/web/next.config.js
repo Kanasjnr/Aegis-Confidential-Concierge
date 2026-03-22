@@ -21,18 +21,21 @@ const nextConfig = {
         os: require.resolve('os-browserify'),
         path: require.resolve('path-browserify'),
       };
-      
-      // Ignore react-native specific modules that leak into the browser build
-      config.module.rules.push({
-        test: /@metamask\/sdk/,
-        resolve: {
-          alias: {
-            '@react-native-async-storage/async-storage': false,
-            'react-native': false,
-          }
-        }
-      });
     }
+
+    // Create alias object if it doesn't exist
+    config.resolve.alias = config.resolve.alias || {};
+
+    if (isServer) {
+      // Prevent browser-specific modules from trying to access browser APIs on the server
+      config.resolve.alias['idb-keyval'] = false;
+      config.resolve.alias['lokijs'] = false;
+    }
+
+    // Handle mobile-specific modules that leak into the build
+    config.resolve.alias['@react-native-async-storage/async-storage'] = false;
+    config.resolve.alias['react-native'] = false;
+
     return config;
   },
 };

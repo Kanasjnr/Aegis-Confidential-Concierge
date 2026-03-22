@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract MockCUSD is ERC20 {
-    constructor() ERC20("Mock cUSD", "mcUSD") {
+contract USDm is ERC20 {
+    constructor() ERC20("USD Mento", "USDm") {
         _mint(msg.sender, 1000000 * 10 ** 18);
     }
 }

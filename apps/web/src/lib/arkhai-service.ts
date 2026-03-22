@@ -12,6 +12,7 @@ import { celoSepolia } from 'viem/chains';
 import { 
   ARKHAI_TRUSTED_ORACLE_ARBITER, 
   ARKHAI_ERC20_ESCROW_OBLIGATION,
+  ERC20Abi
 } from './contracts';
 
 // NLA Demand structure: (string arbitrationProvider, string arbitrationModel, string arbitrationPrompt, string demand)
@@ -85,12 +86,7 @@ export class ArkhaiService {
     return encodeAbiParameters(NLA_DEMAND_ABI, [
       'OpenAI',
       'gpt-4o',
-      `You are an impartial arbitrator for the Aegis Confidential Concierge. 
-      The goal of this mission was: {{demand}}.
-      The agent has provided the following proof of completion: {{obligation}}.
-      
-      Determine if the proof of completion satisfies the mission goal.
-      Answer ONLY 'true' or 'false'.`,
+      'Determine if the proof of completion satisfies the mission goal: {{demand}}. Proof: {{obligation}}. Answer ONLY true or false.',
       missionGoal
     ]);
   }
@@ -101,24 +97,40 @@ export class ArkhaiService {
     tokenAddress: `0x${string}`, 
     amount: bigint
   ) {
-    const encodedNLADemand = this.encodeNLADemand(missionGoal);
+    // We'll use AegisEscrow as the primary method for the demo
+    // since Arkhai staging has persistent revert issues on Celo Sepolia
+    return this.createAegisMissionEscrow(walletClient, missionGoal, tokenAddress, amount);
+  }
 
-    // Wrap for Trusted Oracle Arbiter: (address oracle, bytes data)
-    const encodedOracleDemand = encodeAbiParameters(
-      parseAbiParameters('address oracle, bytes data'),
-      [walletClient.account.address, encodedNLADemand]
-    );
+  async createAegisMissionEscrow(
+    walletClient: any,
+    missionGoal: string,
+    tokenAddress: `0x${string}`,
+    amount: bigint
+  ) {
+    const { AEGIS_ESCROW_ADDRESS, AegisEscrowAbi } = await import('./contracts');
+    
+    // Generate a unique attestationId from the mission goal and timestamp
+    const attestationId = keccak256(toHex(missionGoal + Date.now().toString()));
 
-    // Call 'buy' on the Escrow Obligation contract
-    // Note: User must have approved the token first
+    // For the demo, we use a generic vendor address if one isn't provided
+    const MOCK_VENDOR = "0x1234567890123456789012345678901234567890" as `0x${string}`;
+
+    // Store the goal in localStorage associated with the attestationId so the dashboard can show it
+    try {
+      localStorage.setItem(`aegis_mandate_${attestationId.toLowerCase()}`, missionGoal);
+    } catch (e) {
+      console.warn("Failed to save mandate to localStorage:", e);
+    }
+
     const hash = await walletClient.writeContract({
-      address: ARKHAI_ERC20_ESCROW_OBLIGATION,
-      abi: ERC20_ESCROW_ABI,
-      functionName: 'buy',
-      args: [ARKHAI_TRUSTED_ORACLE_ARBITER, encodedOracleDemand, tokenAddress, amount]
+      address: AEGIS_ESCROW_ADDRESS,
+      abi: AegisEscrowAbi,
+      functionName: 'lockFunds',
+      args: [attestationId, tokenAddress, MOCK_VENDOR, amount]
     });
 
-    return { hash, arbiter: ARKHAI_TRUSTED_ORACLE_ARBITER };
+    return { hash, type: 'aegis', attestationId };
   }
 
   async submitMissionFulfillment(
@@ -184,6 +196,46 @@ export class ArkhaiService {
         }
       }
     });
+  }
+
+  /**
+   * Checks if the user has enough allowance for the Arkhai Escrow contract
+   * and triggers an approval transaction if necessary.
+   */
+  async checkAndApproveToken(
+    publicClient: any,
+    walletClient: any,
+    tokenAddress: `0x${string}`,
+    spender: `0x${string}`,
+    amount: bigint
+  ) {
+    const account = walletClient.account.address;
+
+    // Check current allowance
+    const allowance = await publicClient.readContract({
+      address: tokenAddress,
+      abi: ERC20Abi,
+      functionName: 'allowance',
+      args: [account, spender]
+    });
+
+    if (allowance < amount) {
+      console.log(`Insufficient allowance. Requesting approval for ${amount}...`);
+      const hash = await walletClient.writeContract({
+        account,
+        address: tokenAddress,
+        abi: ERC20Abi,
+        functionName: 'approve',
+        args: [spender, amount]
+      });
+
+      // Wait for approval transaction to be mined
+      await publicClient.waitForTransactionReceipt({ hash });
+      console.log('Approval successful');
+      return true;
+    }
+
+    return false;
   }
 }
 
