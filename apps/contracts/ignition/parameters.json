@@ -1,0 +1,19 @@
+{
+  "MockTokenModule": {
+    "usdt": {
+      "name": "USDT",
+      "symbol": "USDT",
+      "decimals": 6
+    },
+    "usdc": {
+      "name": "USDC",
+      "symbol": "USDC",
+      "decimals": 6
+    },
+    "usdm": {
+      "name": "USDm",
+      "symbol": "USDm",
+      "decimals": 18
+    }
+  }
+}

@@ -6,8 +6,8 @@ import "./ISelfAgentRegistry.sol";
 contract MockSelfAgentRegistry is ISelfAgentRegistry {
     mapping(bytes32 => bool) public verified;
 
-    function setVerified(address account, bool isVerified) external {
-        verified[bytes32(uint256(uint160(account)))] = isVerified;
+    function setVerified(address account, bool _isVerified) external {
+        verified[bytes32(uint256(uint160(account)))] = _isVerified;
     }
 
     function isVerifiedAgent(
@@ -45,4 +45,37 @@ contract MockSelfAgentRegistry is ISelfAgentRegistry {
                 ofac: ofac
             });
     }
+
+    /**
+     * @dev Added to support Self Protocol v2 simulation and submission.
+     * The mobile app calls this method automatically in onchain mode.
+     */
+    function submitProof(
+        uint256, // attestationId
+        bytes calldata, // proof
+        uint256[] calldata // publicSignals
+    ) external returns (bool) {
+        // Automatically verify the sender for this mock implementation
+        verified[bytes32(uint256(uint160(msg.sender)))] = true;
+        return true;
+    }
+
+    // ALIASES for different SDK versions
+    function isAgentVerified(bytes32 agentKey) external view returns (bool) {
+        return verified[agentKey];
+    }
+
+    function isVerified(bytes32 agentKey) external view returns (bool) {
+        return verified[agentKey];
+    }
+
+    /**
+     * @dev Universal fallback to prevent ANY 0x revert during mobile app simulation.
+     * If the app calls a function name we don't know, it will still succeed.
+     */
+    fallback() external {
+        // Return nothing, effectively success for most simulations
+    }
+
+    receive() external payable {}
 }

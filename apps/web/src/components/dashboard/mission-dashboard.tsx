@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { IdentityRibbon } from "./identity-ribbon"
 import { WealthMatrix } from "./wealth-matrix"
 import { AgentServiceStatus } from "./agent-service-status"
@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { SelfQRcode } from "@selfxyz/qrcode"
 import { selfService } from "@/lib/self-service"
 import { arkhaiService } from "@/lib/arkhai-service"
-import { useWalletClient, useAccount } from 'wagmi'
+import { useWalletClient, useAccount, usePublicClient } from 'wagmi'
 import { Check, Shield, Lock, Fingerprint } from "lucide-react"
 import { ARKHAI_ERC20_ESCROW_OBLIGATION, ARKHAI_TRUSTED_ORACLE_ARBITER } from "@/lib/contracts"
 
@@ -19,9 +19,26 @@ export function MissionDashboard() {
   const [mandateText, setMandateText] = useState("")
   const [isDeploying, setIsDeploying] = useState(false)
   const [escrowInfo, setEscrowInfo] = useState<any>(null)
+  const [escrowId, setEscrowId] = useState<bigint | null>(null)
   
   const { data: walletClient } = useWalletClient()
   const { address } = useAccount()
+  const publicClient = usePublicClient()
+
+  useEffect(() => {
+    if (currentStep === 4 && escrowId && publicClient) {
+      console.log("Listening for Arkhai agent fulfillment for escrow:", escrowId.toString());
+      const unwatch = arkhaiService.watchFulfillment(
+        publicClient,
+        escrowId,
+        (fulfillment) => {
+          console.log("Arkhai Fulfillment detected:", fulfillment);
+          setCurrentStep(5);
+        }
+      );
+      return () => unwatch();
+    }
+  }, [currentStep, escrowId, publicClient]);
 
   const steps: any = [
     { label: "Identity Verification", description: "Secured via Self Protocol ZK-Proof", status: isVerified ? "complete" : (currentStep === 1 ? "active" : "pending") },
@@ -168,6 +185,20 @@ export function MissionDashboard() {
                                     BigInt(100) * BigInt(10**18) // 100 Tokens
                                  );
                                  setEscrowInfo(info);
+                                 
+                                 // Fetch escrowId from logs
+                                 if (publicClient) {
+                                   try {
+                                      const id = await arkhaiService.getEscrowIdFromLogs(publicClient, info.hash);
+                                      if (id) {
+                                         console.log("Escrow ID retrieved:", id.toString());
+                                         setEscrowId(id);
+                                      }
+                                   } catch (logErr) {
+                                      console.error("Failed to retrieve escrowId:", logErr);
+                                   }
+                                 }
+                                 
                                  setCurrentStep(4);
                               } catch (e) {
                                  console.error("Escrow creation error:", e);
@@ -204,12 +235,6 @@ export function MissionDashboard() {
                             </span>
                          </div>
                       </div>
-                      <button 
-                         className="w-fit px-10 py-3 border border-border text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-muted-foreground"
-                         onClick={() => setCurrentStep(5)}
-                      >
-                         Simulation: Trigger Agent Submission
-                      </button>
                    </div>
                 )}
 

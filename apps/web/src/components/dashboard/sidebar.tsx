@@ -5,9 +5,10 @@ import { Home, Shield, FileText, Activity, Settings, Plus, LogOut } from "lucide
 interface SidebarProps {
   activeTab: string
   setActiveTab: (tab: string) => void
+  onNewMandate?: () => void
 }
 
-export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, onNewMandate }: SidebarProps) {
   const menuItems = [
     { id: "overview", label: "Home", icon: Home },
     { id: "registry", label: "Registry", icon: Shield },
@@ -46,7 +47,10 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 
       {/* Create New Flow Entry */}
       <div className="mt-auto pt-6 space-y-4">
-        <button className="w-full flex items-center justify-center gap-2 bg-primary text-black font-bold text-xs uppercase tracking-widest py-3 rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/10">
+        <button 
+          onClick={onNewMandate}
+          className="w-full flex items-center justify-center gap-2 bg-primary text-black font-bold text-xs uppercase tracking-widest py-3 rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+        >
           <Plus className="h-3 w-3" />
           New Mandate
         </button>
