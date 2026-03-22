@@ -10,6 +10,7 @@ import {
     SheetFooter
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Sparkles, ArrowRight, Loader2, CheckCircle2, Fingerprint, AlertCircle } from "lucide-react";
 import { useWalletClient, usePublicClient, useAccount } from "wagmi";
 import { arkhaiService } from "@/lib/arkhai-service";
@@ -26,6 +27,12 @@ import {
     ARKHAI_ERC20_ESCROW_OBLIGATION
 } from "@/lib/contracts";
 import { parseUnits } from "viem";
+import { 
+    requestMandatePermissions, 
+    setupAegisSessionAccount
+} from "@/lib/metamask-service";
+
+const AEGIS_SESSION_SEED = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // Demo Key
 
 interface CreateMandateModalProps {
     open: boolean;
@@ -39,7 +46,8 @@ const TOKENS = [
 ];
 
 export function CreateMandateModal({ open, onOpenChange }: CreateMandateModalProps) {
-    const [step, setStep] = useState(0); // Step 0: Identity, 1: Mandate, 2: Goal
+    const [step, setStep] = useState(0); // 0: Identity, 1: Mandate, 2: Goal, 3: Delegation
+    const [grantedPermissions, setGrantedPermissions] = useState<any>(null);
     const [isIdentityVerified, setIsIdentityVerified] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -56,25 +64,21 @@ export function CreateMandateModal({ open, onOpenChange }: CreateMandateModalPro
         budget: "",
         token: "USDm",
         strategy: "balanced",
-        goal: ""
+        goal: "",
+        vendor: ""
     });
 
     // Check if player is already verified on mount
     useEffect(() => {
         const checkVerification = async () => {
-            // Wait for address to be available before making a decision
             if (!address) {
-                // If after 2 seconds we still have no address, stop loading so player can connect
                 const timer = setTimeout(() => setIsCheckingVerification(false), 2000);
                 return () => clearTimeout(timer);
             }
-
             if (!publicClient) return;
 
             setIsCheckingVerification(true);
             const userAddr = address.toLowerCase();
-            
-            // Priority 1: Check session storage
             const sessionVerified = localStorage.getItem(`aegis_verified_${userAddr}`);
             if (sessionVerified === 'true') {
                 setIsIdentityVerified(true);
@@ -83,7 +87,6 @@ export function CreateMandateModal({ open, onOpenChange }: CreateMandateModalPro
                 return;
             }
 
-            // Priority 2: Check on-chain registry
             try {
                 const balance = await publicClient.readContract({
                     address: AEGIS_AGENT_REGISTRY_ADDRESS,
@@ -95,7 +98,7 @@ export function CreateMandateModal({ open, onOpenChange }: CreateMandateModalPro
                 if (Number(balance) > 0) {
                     setIsIdentityVerified(true);
                     localStorage.setItem(`aegis_verified_${userAddr}`, 'true');
-                    setStep(1); // Skip to Mandate selection
+                    setStep(1);
                 }
             } catch (err) {
                 console.error("Error checking verification:", err);
@@ -108,23 +111,57 @@ export function CreateMandateModal({ open, onOpenChange }: CreateMandateModalPro
 
     const isStepValid = () => {
         if (step === 0) return isIdentityVerified;
-        if (step === 1) return formData.name.length > 0 && formData.budget.length > 0;
-        if (step === 2) return formData.goal.length > 10;
+        if (step === 1) return formData.name.length > 0 && formData.budget.length > 0 && (formData.vendor.startsWith('0x') || formData.vendor.length === 0);
+        if (step === 2) return formData.goal.length > 1;
+        if (step === 3) return !!grantedPermissions || !isLoading;
         return true;
     };
 
-    const handleAuthorize = async () => {
-        if (!walletClient || !address) return;
+    const handleDelegate = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
 
+            console.log("Setting up Agent Session Account...");
+            const sessionAccount = await setupAegisSessionAccount(AEGIS_SESSION_SEED as `0x${string}`);
+            
+            const selectedToken = TOKENS.find(t => t.symbol === formData.token);
+            if (!selectedToken) throw new Error("Token not found");
+
+            console.log("Requesting Advanced Permissions (ERC-7715)...");
+            const permissions = await requestMandatePermissions(
+                sessionAccount.address,
+                selectedToken.address as `0x${string}`,
+                formData.budget,
+                selectedToken.decimals,
+                `Budget delegation for mandate: ${formData.name}`
+            );
+
+            console.log("Permissions granted:", permissions);
+            setGrantedPermissions(permissions);
+            // No automatic step move here, button will handle it
+        } catch (err: any) {
+            console.error("Delegation failed:", err);
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAuthorize = async () => {
+        console.log("handleAuthorize triggered", { step, formData, address, hasWallet: !!walletClient });
+        if (!walletClient || !address) {
+            setError("Wallet not connected. Please connect your wallet.");
+            return;
+        }
         setIsLoading(true);
         setError(null);
         try {
             const selectedToken = TOKENS.find(t => t.symbol === formData.token);
             if (!selectedToken) throw new Error("Token not found");
-
             const amount = parseUnits(formData.budget, selectedToken.decimals);
             
-            // Step 1: Token Approval (MockA or USDm)
+            console.log("Checking token approval...");
             await arkhaiService.checkAndApproveToken(
                 publicClient,
                 walletClient,
@@ -133,263 +170,318 @@ export function CreateMandateModal({ open, onOpenChange }: CreateMandateModalPro
                 amount
             );
 
-            // Step 2: Create Mission Escrow
             const missionGoal = `Mandate: ${formData.name}. Strategy: ${formData.strategy}. Goal: ${formData.goal}`;
-
+            console.log("Creating mission escrow...", { missionGoal, amount, vendor: formData.vendor });
+            
             const result = await arkhaiService.createMissionEscrow(
                 walletClient,
                 missionGoal,
                 selectedToken.address as `0x${string}`,
-                amount
+                amount,
+                formData.vendor as `0x${string}`,
+                grantedPermissions
             );
 
+            console.log("Mission escrow created successfully", result);
             setTxHash(result.hash);
             setIsSuccess(true);
             setIsLoading(false);
-            console.log(`${result.type === 'arkhai' ? 'Arkhai' : 'Aegis'} Authorization Successful:`, result.hash);
-
-            // Keep success state longer so user can see it
             setTimeout(() => {
                 onOpenChange(false);
                 setIsSuccess(false);
                 setTxHash(null);
+                setStep(1);
             }, 4000);
-
         } catch (err: any) {
-            console.error("Authorization failed:", err);
-            setError(err.message || "Transaction failed. Please check your balance and try again.");
+            console.error("Authorization failed detail:", err);
+            setError(err.message || "Transaction failed. Please check your balance.");
             setIsLoading(false);
         }
     };
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full sm:max-w-xl bg-black/95 border-white/5 backdrop-blur-2xl p-0 flex flex-col overflow-hidden">
+            <SheetContent side="right" className="w-full sm:max-w-2xl bg-[#050505]/95 border-white/5 backdrop-blur-3xl p-0 flex flex-col overflow-hidden shadow-2xl">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/0 via-primary to-primary/0 opacity-50" />
 
-                <SheetHeader className="p-8 pb-4">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-                            <Shield className="h-4 w-4 text-primary" />
+                <SheetHeader className="p-12 pb-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-inner">
+                            <Shield className="h-6 w-6 text-primary" />
                         </div>
-                        <div className="h-px w-8 bg-white/10" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">CFO Protocol</span>
+                        <div className="h-px w-12 bg-white/10" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60">Institutional Protocol</span>
                     </div>
-                    <SheetTitle className="text-3xl font-black tracking-tighter text-white">
-                        {isSuccess ? "Mandate Authorized" : step === 0 ? "Identity Verification" : step === 1 ? "Define New Mandate" : "Set Intelligence Goal"}
-                    </SheetTitle>
-                    <SheetDescription className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
-                        {isSuccess ? `Transaction hash: ${txHash?.slice(0, 10)}...` : step === 0 ? "Prove authority via Self Protocol ZK-Proof." : "Authorized by Celo Mainnet Identity."}
-                    </SheetDescription>
+                    <div>
+                        <SheetTitle className="text-4xl font-black tracking-tighter text-white leading-none">
+                            {isSuccess ? "Mission Authorized" : step === 0 ? "Identify Operator" : step === 1 ? "Define Mandate" : step === 2 ? "Set Objectives" : "Secure & Delegate"}
+                        </SheetTitle>
+                        <SheetDescription className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 opacity-60">
+                            {isSuccess ? `Receipt: ${txHash?.slice(0, 20)}...` : step === 0 ? "Verify human authority via ZK-Proof." : step === 3 ? "Advanced Permission Protocol (ERC-7715)" : "Deploying autonomous asset management."}
+                        </SheetDescription>
+                    </div>
                 </SheetHeader>
 
-                <div className="py-6 min-height-[400px] flex flex-col">
+                <div className="flex-1 px-12 py-8 overflow-y-auto scrollbar-hide">
                     {isCheckingVerification ? (
-                        <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-                            <Loader2 className="w-12 h-12 text-primary animate-spin opacity-50" />
-                            <p className="text-muted-foreground animate-pulse">Syncing identity with Celo...</p>
+                        <div className="h-full flex flex-col items-center justify-center space-y-6">
+                            <div className="relative">
+                               <Loader2 className="w-16 h-16 text-primary animate-spin opacity-20" />
+                               <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+                            </div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-primary/40 animate-pulse font-mono text-center">Interrogating Registry...</p>
                         </div>
                     ) : isSuccess ? (
-                        <div className="flex flex-col items-center justify-center h-full space-y-6 animate-in fade-in zoom-in duration-500">
-                            <div className="h-24 w-24 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                                <CheckCircle2 className="h-12 w-12 text-green-500" />
-                            </div>
-                            <div className="text-center space-y-2">
-                                <h3 className="text-2xl font-semibold">Mandate Authorized!</h3>
-                                <p className="text-muted-foreground">Your funds are now secured in the Aegis Escrow.</p>
+                        <div className="h-full flex flex-col items-center justify-center space-y-8 animate-in fade-in zoom-in duration-500 text-center">
+                            <motion.div 
+                                initial={{ scale: 0.5, rotate: -20 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                className="h-32 w-32 rounded-[2.5rem] bg-green-500/10 border border-green-500/20 flex items-center justify-center shadow-[0_0_50px_rgba(34,197,94,0.1)]"
+                            >
+                                <CheckCircle2 className="h-16 w-16 text-green-500" />
+                            </motion.div>
+                            <div className="space-y-3">
+                                <h3 className="text-3xl font-black text-white tracking-tighter uppercase">Authorized</h3>
+                                <p className="text-muted-foreground text-sm font-medium px-8">Funds secured in Aegis Escrow. Deployment sequence initiated.</p>
                                 {txHash && (
                                     <a 
                                         href={`https://explorer.celo.org/sepolia/tx/${txHash}`} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="text-primary hover:underline text-sm block mt-2"
+                                        className="inline-flex items-center gap-2 text-primary hover:underline text-[10px] font-black uppercase tracking-widest mt-4 bg-primary/10 px-4 py-2 rounded-xl border border-primary/20"
                                     >
-                                        View on Explorer
+                                        View On-Chain Receipt <ArrowRight className="h-3 w-3" />
                                     </a>
                                 )}
                             </div>
-                            <Button variant="outline" onClick={() => onOpenChange(false)} className="mt-4">
-                                Done
-                            </Button>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col">
+                        <div className="space-y-10">
                             {error && (
-                                <div className="mx-8 mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start space-x-3 text-destructive animate-in slide-in-from-top-2">
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-3xl flex items-start space-x-4 text-destructive animate-in slide-in-from-top-2">
+                                    <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
                                     <div className="text-sm">
-                                        <p className="font-semibold">Authorization Failed</p>
-                                        <p className="opacity-90">{error}</p>
+                                        <p className="font-black uppercase tracking-widest text-[10px] mb-1">Protocol Rejection</p>
+                                        <p className="font-medium opacity-90">{error}</p>
                                     </div>
                                 </div>
                             )}
                             
                             {step === 0 ? (
-                        <div className="flex flex-col items-center justify-center gap-8 py-4 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <div className="text-center space-y-4 max-w-sm">
-                                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                                    <Fingerprint className="h-8 w-8 text-primary" />
+                                <div className="flex flex-col items-center justify-center gap-10 py-4 animate-in fade-in slide-in-from-right-8 duration-700">
+                                    <div className="text-center space-y-4 max-w-sm">
+                                        <div className="mx-auto w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center border border-primary/20 shadow-inner">
+                                            <Fingerprint className="h-10 w-10 text-primary" />
+                                        </div>
+                                        <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Confidential Scan</h2>
+                                        <p className="text-muted-foreground text-xs leading-relaxed font-medium">
+                                            Only verified human operators can define mandates. Scan via Self Protocol to provide your ZK-Proof.
+                                        </p>
+                                    </div>
+
+                                    <div className="p-10 bg-white rounded-[3rem] shadow-[0_30px_60px_-15px_rgba(var(--primary),0.3)] transform transition-transform hover:scale-[1.02]">
+                                        {(() => {
+                                            const config = selfService.getQRConfig(address || '');
+                                            return (
+                                                <SelfQRcode
+                                                    selfApp={config as any}
+                                                    onError={(error) => console.error("Self Verification Error:", error)}
+                                                    onSuccess={async () => {
+                                                        console.log("Self Scan Successful. Auto-verifying on-chain (Mock Mode)...");
+                                                        setIsIdentityVerified(true);
+                                                        if (address) {
+                                                            localStorage.setItem(`aegis_verified_${address.toLowerCase()}`, 'true');
+                                                            // PROACTIVE: Ensure the CFO is verified in the Mock Registry so lockFunds doesn't revert
+                                                            try {
+                                                                const { MOCK_SELF_REGISTRY_ADDRESS, AegisAgentRegistryAbi } = await import("@/lib/contracts");
+                                                                if (walletClient) {
+                                                                    await walletClient.writeContract({
+                                                                        address: MOCK_SELF_REGISTRY_ADDRESS,
+                                                                        abi: AegisAgentRegistryAbi,
+                                                                        functionName: 'setVerified',
+                                                                        args: [address, true]
+                                                                    });
+                                                                    console.log("On-chain mock verification synced.");
+                                                                }
+                                                            } catch (e) {
+                                                                console.warn("Silent failure on mock verification - might already be verified or contract missing.", e);
+                                                            }
+                                                        }
+                                                        setTimeout(() => setStep(1), 1500);
+                                                    }}
+                                                />
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {isIdentityVerified && (
+                                        <div className="flex items-center gap-3 text-primary font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
+                                            <div className="h-2 w-2 rounded-full bg-primary" /> Authority Confirmed
+                                        </div>
+                                    )}
                                 </div>
-                                <h2 className="text-xl font-bold">Confidential Scan</h2>
-                                <p className="text-muted-foreground text-sm leading-relaxed">
-                                    Scanning the Self QR ensures only authorized human operators can supply mandates to your autonomous agent.
-                                </p>
-                            </div>
-
-                            <div className="p-6 bg-white rounded-3xl shadow-2xl shadow-primary/10">
-                                {(() => {
-                                    const config = selfService.getQRConfig(address || '');
-                                    console.log("Self QR Config Payload:", config);
-                                    return (
-                                        <SelfQRcode
-                                            selfApp={config as any}
-                                            onError={(error) => console.error("Self Verification Error:", error)}
-                                            onSuccess={() => {
-                                                setIsIdentityVerified(true);
-                                                if (address) localStorage.setItem(`aegis_verified_${address}`, 'true');
-                                                setTimeout(() => setStep(1), 1500);
-                                            }}
+                            ) : step === 1 ? (
+                                <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Mission Identifier</label>
+                                        <input
+                                            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-6 text-xl font-black tracking-tight focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-white/10 shadow-inner"
+                                            placeholder="e.g. Q4 CLOUD PROCUREMENT"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         />
-                                    );
-                                })()}
-                            </div>
+                                    </div>
 
-                            {isIdentityVerified && (
-                                <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-[10px] animate-pulse">
-                                    <CheckCircle2 className="h-4 w-4" /> Identity Verified
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/40">Settlement Destination (Vendor)</label>
+                                        <input
+                                            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-6 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-white/10 shadow-inner"
+                                            placeholder="0x..."
+                                            value={formData.vendor}
+                                            onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
+                                        />
+                                        <div className="flex items-center gap-2 opacity-40">
+                                           <div className="h-1 w-1 rounded-full bg-white" />
+                                           <p className="text-[9px] font-bold uppercase tracking-widest">Final target for autonomous fund release</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Allocated Budget</label>
+                                        <div className="grid grid-cols-3 gap-3 mb-4">
+                                            {TOKENS.map((t) => (
+                                                <button
+                                                    key={t.symbol}
+                                                    onClick={() => setFormData({ ...formData, token: t.symbol })}
+                                                    className={`py-3 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest border transition-all ${formData.token === t.symbol
+                                                        ? 'bg-primary/20 border-primary/50 text-primary shadow-[0_4px_12px_rgba(var(--primary),0.2)]'
+                                                        : 'bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10'
+                                                        }`}
+                                                >
+                                                    {t.symbol}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-6 text-4xl font-black tracking-tighter focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-white/10 shadow-inner"
+                                                placeholder="0.00"
+                                                value={formData.budget}
+                                                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                                            />
+                                            <span className="absolute right-6 top-1/2 -translate-y-1/2 font-black text-muted-foreground/30 text-xl tracking-widest">{formData.token}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : step === 2 ? (
+                                <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Execution Directive</label>
+                                        <textarea
+                                            className="w-full h-48 bg-white/[0.03] border border-white/10 rounded-3xl p-6 text-lg font-bold leading-relaxed tracking-tight focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-white/10 resize-none shadow-inner"
+                                            placeholder="Specify what the agent should achieve with this capital deployment..."
+                                            value={formData.goal}
+                                            onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="p-8 bg-primary/5 border border-primary/20 rounded-[2.5rem] relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                                            <Sparkles className="h-10 w-10 text-primary" />
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <p className="text-[11px] text-primary font-bold leading-relaxed uppercase tracking-widest">
+                                                Aegis NLA will autonomously coordinate with oracle arbiters to verify fulfillment before settlement.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-700">
+                                    <div className="p-8 bg-white/[0.03] border border-white/10 rounded-[2.5rem] space-y-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                                                <Shield className="h-6 w-6 text-primary" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-black text-white uppercase tracking-tight">Agent Authorization</h4>
+                                                <p className="text-[10px] text-muted-foreground font-medium">Authorizing agent to manage budget for this mission.</p>
+                                            </div>
+                                        </div>
+
+                                        {grantedPermissions ? (
+                                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl flex items-center gap-4">
+                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                                <div>
+                                                    <p className="text-[10px] font-black text-green-500 uppercase tracking-widest">Agent Authorized</p>
+                                                    <p className="text-[9px] text-green-500/60 font-medium">Session permissions granted for this mandate.</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                                    Authorizing the Agent creates a secure session for managing the mission budget autonomously.
+                                                </p>
+                                                <Button 
+                                                    className="w-full h-12 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest"
+                                                    onClick={handleDelegate}
+                                                    disabled={isLoading}
+                                                >
+                                                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Authorize Agent Session"}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="text-[9px] text-muted-foreground/40 font-mono text-center uppercase tracking-[0.2em]">
+                                        Powered by MetaMask Smart Accounts Kit & ERC-7710
+                                    </div>
                                 </div>
                             )}
                         </div>
-                    ) : step === 1 ? (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <div className="space-y-3">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-primary/80">Mandate Identifier</label>
-                                <input
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-lg font-bold tracking-tight focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-white/20"
-                                    placeholder="e.g. Q2 Cloud Strategy"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-primary/80">Asset & Budget</label>
-                                <div className="grid grid-cols-4 gap-2 mb-3">
-                                    {TOKENS.map((t) => (
-                                        <button
-                                            key={t.symbol}
-                                            onClick={() => setFormData({ ...formData, token: t.symbol })}
-                                            className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${formData.token === t.symbol
-                                                ? 'bg-primary/10 border-primary text-primary'
-                                                : 'bg-white/5 border-white/5 text-muted-foreground'
-                                                }`}
-                                        >
-                                            {t.symbol}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-2xl font-black tracking-tighter focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-white/20"
-                                        placeholder="0.00"
-                                        value={formData.budget}
-                                        onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                                    />
-                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-muted-foreground uppercase">{formData.token}</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-primary/80">Risk Strategy</label>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <StrategyOption
-                                        label="Aggressive"
-                                        active={formData.strategy === "aggressive"}
-                                        onClick={() => setFormData({ ...formData, strategy: "aggressive" })}
-                                    />
-                                    <StrategyOption
-                                        label="Balanced"
-                                        active={formData.strategy === "balanced"}
-                                        onClick={() => setFormData({ ...formData, strategy: "balanced" })}
-                                    />
-                                    <StrategyOption
-                                        label="Secure"
-                                        active={formData.strategy === "secure"}
-                                        onClick={() => setFormData({ ...formData, strategy: "secure" })}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <div className="space-y-3">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-primary/80">Agent Objective</label>
-                                <textarea
-                                    className="w-full h-40 bg-white/5 border border-white/10 rounded-2xl p-4 text-lg font-bold tracking-tight focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-white/20 resize-none"
-                                    placeholder="Describe what the agent should achieve with this budget..."
-                                    value={formData.goal}
-                                    onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="glass-panel p-6 rounded-[2rem] border-primary/20 bg-primary/5">
-                                <div className="flex items-start gap-4">
-                                    <Sparkles className="h-5 w-5 text-primary shrink-0 mt-1" />
-                                    <p className="text-xs text-primary/80 leading-relaxed font-medium">
-                                        Arkhai NLA will analyze this goal and autonomously negotiate with vendors on your behalf. Funds are secured in an on-chain escrow obligation.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
                     )}
                 </div>
-            )}
-        </div>
 
-                <SheetFooter className="p-8 pt-0 border-t border-white/5 bg-black/40 text-left">
-                    <div className="w-full flex items-center justify-between gap-4">
+                <SheetFooter className="p-12 border-t border-white/5 bg-black/60">
+                    <div className="w-full flex items-center justify-between gap-6">
                         {!isSuccess && step > 0 && (
                             <Button
                                 variant="ghost"
-                                className="font-bold text-muted-foreground uppercase tracking-widest text-[10px]"
+                                className="h-16 px-8 font-black uppercase tracking-[0.3em] text-[10px] text-muted-foreground hover:text-white transition-colors"
                                 onClick={() => setStep(step - 1)}
                                 disabled={isLoading}
                             >
-                                Back
+                                Re-Index
                             </Button>
                         )}
                         {!isSuccess && (
                             <Button
-                                className={`flex-1 h-14 bg-primary hover:bg-primary/90 text-background font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 disabled:opacity-30 transition-all active:scale-[0.98] ${step === 0 ? 'hidden' : ''}`}
+                                className={`flex-1 h-16 bg-white hover:bg-white/90 text-black font-black uppercase tracking-[0.4em] text-[10px] rounded-[1.5rem] shadow-2xl transition-all active:scale-[0.98] ${step === 0 ? 'hidden' : ''}`}
                                 disabled={!isStepValid() || isLoading}
                                 onClick={() => {
                                     if (step === 1) setStep(2);
+                                    else if (step === 2) setStep(3);
                                     else handleAuthorize();
                                 }}
                             >
                                 {isLoading ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Authorizing...
+                                        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                                        Authorized by CFO Master ID
                                     </>
                                 ) : (
                                     <>
-                                        {step === 1 ? "Next Analysis" : "Authorize Mandate"}
-                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                        {step === 1 ? "Configure Objective" : step === 2 ? "Secure Budget" : "Broadcast Mandate"}
+                                        <ArrowRight className="ml-3 h-4 w-4" />
                                     </>
                                 )}
                             </Button>
                         )}
                         {step === 0 && !isIdentityVerified && (
-                            <div className="w-full h-14 flex items-center justify-center">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Awaiting ZK-Proof...</span>
-                            </div>
-                        )}
-                        {isSuccess && (
-                            <div className="w-full h-14 border border-primary/20 rounded-xl flex items-center justify-center">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Session Synchronized</span>
-                            </div>
+                             <div className="flex-1 h-16 border border-white/5 bg-white/5 rounded-[1.5rem] flex items-center justify-center">
+                                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 animate-pulse">Awaiting Proof...</span>
+                             </div>
                         )}
                     </div>
                 </SheetFooter>

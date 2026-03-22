@@ -108,7 +108,7 @@ export function MissionDashboard() {
                       
                       <div className="p-8 bg-white rounded-3xl shadow-2xl shadow-primary/10">
                          <SelfQRcode 
-                            selfApp={selfService.getQRConfig() as any}
+                            selfApp={selfService.getQRConfig(address || "") as any}
                             onError={(error) => console.error("Self Verification Error:", error)}
                             onSuccess={() => {
                                console.log("Self Verification Success");
@@ -220,13 +220,13 @@ export function MissionDashboard() {
                          <h2 className="text-3xl font-light">Escrow Deployed & Arkhai Listener Active</h2>
                       </div>
                       <div className="p-8 border border-white/10 bg-white/5 rounded-3xl space-y-4 font-mono text-sm">
-                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Escrow Contract:</span>
-                            <span className="text-primary truncate ml-8">{ARKHAI_ERC20_ESCROW_OBLIGATION}</span>
+                         <div className="flex justify-between items-center min-w-0 gap-4">
+                            <span className="text-muted-foreground shrink-0">Escrow Contract:</span>
+                            <span className="text-primary truncate text-right flex-1">{ARKHAI_ERC20_ESCROW_OBLIGATION}</span>
                          </div>
-                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Arkhai Arbiter:</span>
-                            <span className="text-primary">{ARKHAI_TRUSTED_ORACLE_ARBITER}</span>
+                         <div className="flex justify-between items-center min-w-0 gap-4">
+                            <span className="text-muted-foreground shrink-0">Arkhai Arbiter:</span>
+                            <span className="text-primary truncate text-right flex-1">{ARKHAI_TRUSTED_ORACLE_ARBITER}</span>
                          </div>
                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Status:</span>

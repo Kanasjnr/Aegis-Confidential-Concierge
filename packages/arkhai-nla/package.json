@@ -1,5 +1,5 @@
 {
-	"name": "nla",
+	"name": "@aegis/nla",
 	"version": "1.1.1",
 	"description": "Natural Language Agreement Oracle - CLI for creating and managing blockchain agreements using natural language",
 	"type": "module",
