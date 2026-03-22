@@ -83,3 +83,22 @@
 .section-margin {
   @apply my-16;
 }
+
+/* Premium Animations for Aegis */
+@keyframes scan {
+  0% { top: 0% }
+  100% { top: 100% }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-200%) }
+  100% { transform: translateX(200%) }
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}

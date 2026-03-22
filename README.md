@@ -14,7 +14,7 @@ Aegis leverages the full potential of the Celo ecosystem:
 - **Celo Mainnet**: High-speed, low-cost settlement layer.
 - **Self Protocol**: ZK-Humanity and OFAC compliance gating via ZK-ID.
 - **EAS (Ethereum Attestation Service)**: Transparent, on-chain deal anchoring.
-- **MetaMask (ERC-7715)**: Secure budget delegation and CFO master control.
+- **MetaMask**: Secure CFO master control and transaction signing.
 - **Protocol Labs (ERC-8004)**: Standardized Trustless Agent Identity.
 - **Locus & AgentCash**: Autonomous vendor discovery and search tools.
 
