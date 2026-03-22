@@ -20,7 +20,7 @@ Aegis leverages the full potential of the Celo ecosystem:
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 Aegis operates at the intersection of AI reasoning and blockchain settlement. The architecture ensures that while the agent is autonomous, it remains under the strict control/budget of the CFO.
 
@@ -55,7 +55,7 @@ graph TD
 
 ---
 
-## 🔄 Core Flows
+## Core Flows
 
 ### 1. Mandate Creation & Budget Delegation
 The CFO defines a "Mission Intent" (e.g., "Find a Lisbon office for May, budget $5k"). Funds are locked in the `AegisEscrow` contract, specifically tied to this intent.
@@ -93,7 +93,7 @@ sequenceDiagram
 
 ---
 
-## 📍 Live Implementation (Celo Sepolia)
+## Live Implementation (Celo Sepolia)
 
 The core infrastructure is live on Celo:
 
@@ -105,7 +105,7 @@ The core infrastructure is live on Celo:
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Prerequisites
 - **Node.js** (v18+)
@@ -139,7 +139,7 @@ pnpm deploy:celo
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 - `apps/agent` - Node.js Agent Core (Venice AI & Reasoning)
 - `apps/contracts` - Aegis Smart Contracts (Solidity & Hardhat)
@@ -147,4 +147,3 @@ pnpm deploy:celo
 
 ---
 
-_Built for the Celo "Power 7" Hackathon._
