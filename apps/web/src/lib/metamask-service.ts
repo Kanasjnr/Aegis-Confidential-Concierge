@@ -1,4 +1,4 @@
-import { createWalletClient, custom, parseUnits, createPublicClient, http, stringToHex, getAddress } from "viem";
+import { createWalletClient, custom, createPublicClient, http, stringToHex, getAddress } from "viem";
 import { celoSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { 
@@ -76,9 +76,7 @@ export const setupAegisSessionAccount = async (agentPrivateKey: `0x${string}`) =
 export const requestMandatePermissions = async (
   userAddress: string,
   sessionAccountAddress: string,
-  tokenAddress: string,
   amount: string,
-  decimals: number = 18,
   justification: string = "Budget delegation for Aegis Mission"
 ) => {
   const walletClient = getMetaMaskClient();
