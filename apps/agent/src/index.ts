@@ -12,6 +12,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { celoSepolia } from "viem/chains";
 import { promises as fs } from "fs";
 import path from "path";
+import http_server from "http";
 import OpenAI from "openai";
 import chalk from "chalk";
 import { locusService } from "./locus-service.js";
@@ -618,6 +619,15 @@ class AegisAgent {
 
 const run = async () => {
   try {
+    // Start health check server for Render compatibility
+    const port = process.env.PORT || 8080;
+    http_server.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('Aegis Agent: Service Healthy\n');
+    }).listen(port, () => {
+      console.log(chalk.dim(`[Render] Health check server listening on port ${port}`));
+    });
+
     const aegis = new AegisAgent();
     await aegis.initialize();
     await aegis.listen();
