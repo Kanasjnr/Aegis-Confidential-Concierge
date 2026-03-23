@@ -163,21 +163,23 @@ pnpm deploy:celo
 ### **Monorepo Layout**
 
 - **`apps/agent`** — Node.js Autonomous Engine
-    - `src/index.ts`: Core mission orchestration & Venice AI private reasoning.
-    - `src/locus-service.ts`: Agent-side Locus integration for intent auditing.
-    - `src/request-credits.ts`: Utility for managing non-custodial agent utility credits.
+
+  - `src/index.ts`: Core mission orchestration & Venice AI private reasoning.
+  - `src/locus-service.ts`: Agent-side Locus integration for intent auditing.
+  - `src/request-credits.ts`: Utility for managing non-custodial agent utility credits.
 
 - **`apps/contracts`** — Celo Smart Contracts (Solidity)
-    - `contracts/AegisEscrow.sol`: Sovereign settlement & automated escrow release.
-    - `contracts/AegisAgentRegistry.sol`: Verified Agent Metadata & ZK-Identity (ERC-8004).
-    - `scripts/`: Implementation scripts for atomic deployment & contract verification.
-    - `test/`: Comprehensive unit tests for on-chain state transitions.
+
+  - `contracts/AegisEscrow.sol`: Sovereign settlement & automated escrow release.
+  - `contracts/AegisAgentRegistry.sol`: Verified Agent Metadata & ZK-Identity (ERC-8004).
+  - `scripts/`: Implementation scripts for atomic deployment & contract verification.
+  - `test/`: Comprehensive unit tests for on-chain state transitions.
 
 - **`apps/web`** — CFO Management Dashboard (Next.js)
-    - `src/app/`: App Router views & specialized API handlers (e.g., Self ZK-Callback).
-    - `src/components/dashboard/`: High-fidelity terminal-vibes UI (Wealth Matrix, Activity Panel).
-    - `src/hooks/`: Data orchestration layer (`useMandates`, `useEscrowMetrics`, `useIntelligenceLogs`).
-    - `src/lib/`: Unified Service Architecture (MetaMask 7702/7715, Arkhai NLA, Self Protocol).
+  - `src/app/`: App Router views & specialized API handlers (e.g., Self ZK-Callback).
+  - `src/components/dashboard/`: High-fidelity terminal-vibes UI (Wealth Matrix, Activity Panel).
+  - `src/hooks/`: Data orchestration layer (`useMandates`, `useEscrowMetrics`, `useIntelligenceLogs`).
+  - `src/lib/`: Unified Service Architecture (MetaMask 7702/7715, Arkhai NLA, Self Protocol).
 
 ---
 
