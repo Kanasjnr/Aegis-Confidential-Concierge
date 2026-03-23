@@ -620,12 +620,12 @@ class AegisAgent {
 const run = async () => {
   try {
     // Start health check server for Render compatibility
-    const port = process.env.PORT || 8080;
+    const port = Number(process.env.PORT) || 10000;
     http_server.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('Aegis Agent: Service Healthy\n');
-    }).listen(port, () => {
-      console.log(chalk.dim(`[Render] Health check server listening on port ${port}`));
+    }).listen(port, '0.0.0.0', () => {
+      console.log(chalk.dim(`[Render] Health check server listening on 0.0.0.0:${port}`));
     });
 
     const aegis = new AegisAgent();
