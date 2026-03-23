@@ -76,7 +76,9 @@ export const setupAegisSessionAccount = async (agentPrivateKey: `0x${string}`) =
 export const requestMandatePermissions = async (
   userAddress: string,
   sessionAccountAddress: string,
+  tokenAddress: string,
   amount: string,
+  decimals: number,
   justification: string = "Budget delegation for Aegis Mission"
 ) => {
   const walletClient = getMetaMaskClient();
