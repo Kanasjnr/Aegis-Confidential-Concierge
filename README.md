@@ -6,7 +6,7 @@ A privacy-first, autonomous procurement agent for businesses. Built on **Celo** 
 
 Aegis enables businesses to delegate complex procurement and search tasks to a trusted autonomous agent. By combining ZK-identity, verifiable commitments, and private reasoning, Aegis creates a secure bridge between natural language negotiations and on-chain settlement.
 
-## Technological Foundation
+## The Power 7 Stack
 
 Aegis leverages the full potential of the Celo ecosystem:
 
@@ -106,6 +106,8 @@ sequenceDiagram
 ---
 
 ## Live Implementation (Celo Sepolia)
+## Live Implementation (Celo Mainnet)
+##  Live Implementation (Celo Mainnet)
 
 The core infrastructure is live on Celo:
 
