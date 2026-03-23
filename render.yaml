@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: aegis-agent
+    env: node
+    rootDir: apps/agent
+    buildCommand: pnpm install && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: DASHBOARD_API_URL
+        sync: false
+      - key: VENICE_API_KEY
+        sync: false
+      - key: AGENT_PRIVATE_KEY
+        sync: false
+      - key: Locus_BACKEND_URL
+        sync: false
