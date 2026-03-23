@@ -1,120 +1,28 @@
-import { FileText, TrendingUp, Clock, AlertCircle, ExternalLink, X, Shield, Coins, Terminal, Info } from "lucide-react"
-import { useAccount, usePublicClient } from "wagmi"
-import { useState, useEffect } from "react"
-import { formatUnits } from "viem"
-import { AEGIS_ESCROW_ADDRESS, AegisEscrowAbi, getTokenDecimals, getTokenSymbol } from "@/lib/contracts"
+"use client"
+
+import { FileText, TrendingUp, Clock, AlertCircle, ExternalLink, X, Shield, Coins, Terminal, Info, Zap } from "lucide-react"
+import { useAccount } from "wagmi"
+import { useState } from "react"
+import { AEGIS_ESCROW_ADDRESS } from "@/lib/contracts"
 import { motion, AnimatePresence } from "framer-motion"
 import { ReasoningDisplay } from "./reasoning-display"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
-interface Mandate {
-  id: string
-  name: string
-  type: string
-  status: "active" | "executed" | "pending" | "secured"
-  value: string
-  fullGoal: string
-  token: string
-  amount: string
-  lastUpdated: string
-}
-
-// Support for "Legacy" mandates created before the caching was implemented
-const LEGACY_MANDATES_METADATA: Record<string, string> = {
-  "0x42f7723ac24cf2706cc3a4092f54ac6f8c767fa798e881d04a3349d389d69b6d": "Mandate: Lisbon Workspace Residency. Strategy: Balanced. Goal: Find a high-end co-living space in Lisbon for the month of May. It must have high-speed fiber internet, a private balcony, and be within walking distance of the Barrio Alto district.",
-  ["0x42f7723ac24cf2706cc3a4092f54ac6f8c767fa798e881d04a3349d389d69b6d".toLowerCase()]: "Mandate: Lisbon Workspace Residency. Strategy: Balanced. Goal: Find a high-end co-living space in Lisbon for the month of May. It must have high-speed fiber internet, a private balcony, and be within walking distance of the Barrio Alto district."
-}
+import { useMandates, Mandate } from "@/hooks/use-mandates"
 
 export function MandateTable() {
-  const { address } = useAccount()
-  const publicClient = usePublicClient()
-  const [mandates, setMandates] = useState<Mandate[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { mandates, isLoading } = useMandates()
   const [selectedMandate, setSelectedMandate] = useState<Mandate | null>(null)
-
-  useEffect(() => {
-    const fetchMandates = async () => {
-      if (!address || !publicClient) return
-      setIsLoading(true)
-
-      try {
-        const logs = await publicClient.getLogs({
-          address: AEGIS_ESCROW_ADDRESS,
-          event: {
-            type: 'event',
-            name: 'FundsLocked',
-            inputs: [
-              { indexed: true, name: 'attestationId', type: 'bytes32' },
-              { indexed: true, name: 'agent', type: 'address' },
-              { indexed: true, name: 'vendor', type: 'address' },
-              { indexed: false, name: 'token', type: 'address' },
-              { indexed: false, name: 'amount', type: 'uint256' }
-            ]
-          },
-          args: {
-            agent: address
-          },
-          fromBlock: 20850000n
-        })
-
-        const mappedMandates: Mandate[] = await Promise.all(logs.map(async (log: any) => {
-          const { attestationId, token, amount } = log.args
-          const idLower = attestationId.toLowerCase()
-
-          // Try to recover goal from localStorage or Legacy map
-          const savedGoal = localStorage.getItem(`aegis_mandate_${idLower}`) || LEGACY_MANDATES_METADATA[idLower]
-
-          // Fetch reasoning status from API
-          let currentStatus: Mandate['status'] = "active"
-          try {
-            const resp = await fetch(`/api/agent/reasoning?mandateId=${attestationId}`)
-            const data = await resp.json()
-            if (data.status === 'secured') currentStatus = "secured"
-            if (data.status === 'success') currentStatus = "executed"
-          } catch (e) {
-             console.log("Status check failed for", attestationId)
-          }
-
-          let name = `Mandate ${attestationId.slice(0, 6)}`
-          if (savedGoal) {
-            const cleaned = savedGoal.replace('Mandate: ', '').replace('Determine if ', '')
-            name = cleaned.includes('Strategy:') ? cleaned.split('Strategy:')[0].trim().replace('.', '') : cleaned.split('.')[0]
-            name = name.slice(0, 40)
-          }
-
-          const type = savedGoal?.toLowerCase().includes('strategy') ? 'AI Optimization' : 'Service Escrow'
-          const decimals = getTokenDecimals(token)
-          const symbol = getTokenSymbol(token)
-
-          return {
-            id: attestationId,
-            name: name,
-            type: type,
-            status: currentStatus,
-            value: `${formatUnits(amount, decimals)} ${symbol}`,
-            fullGoal: savedGoal || `Aegis Escrow Auth: ${attestationId.slice(0, 12)}...`,
-            token: token,
-            amount: formatUnits(amount, decimals),
-            lastUpdated: "Active Now"
-          }
-        }))
-
-        setMandates(mappedMandates.reverse())
-      } catch (error) {
-        console.error("Error fetching mandates:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchMandates()
-  }, [address, publicClient])
 
   if (isLoading) {
     return (
-      <div className="w-full h-40 flex items-center justify-center border border-dashed border-border rounded-2xl">
-        <div className="flex flex-col items-center gap-2">
-          <Clock className="h-5 w-5 text-primary animate-spin" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Syncing Mandates...</span>
+      <div className="w-full h-60 flex items-center justify-center border-4 border-dashed border-white/5 rounded-3xl bg-[#121821]/50">
+        <div className="flex flex-col items-center gap-4">
+          <Clock strokeWidth={2.5} className="h-8 w-8 text-slate-400 animate-spin" />
+          <span className="text-[12px] font-black uppercase tracking-[0.4em] text-muted-foreground/40">CALIBRATING_DIRECTIVES...</span>
         </div>
       </div>
     )
@@ -122,79 +30,76 @@ export function MandateTable() {
 
   if (mandates.length === 0) {
     return (
-      <div className="w-full h-40 flex flex-col items-center justify-center border border-dashed border-border rounded-2xl space-y-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">No Active Mandates</span>
-        <p className="text-xs text-muted-foreground/60 font-medium">Create your first mandate to see it here.</p>
+      <div className="w-full h-60 flex flex-col items-center justify-center border-4 border-dashed border-white/5 rounded-3xl space-y-4 bg-[#121821]/50">
+        <Shield className="h-10 w-10 text-muted-foreground/10" />
+        <span className="text-[12px] font-black uppercase tracking-[0.4em] text-muted-foreground/20">NO_ACTIVE_DIRECTIVES_DETECTED</span>
       </div>
     )
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Active Mandates</span>
+    <div className="w-full space-y-8">
+      <div className="flex items-center justify-between border-b border-white/5 pb-6">
+        <div className="flex items-center gap-4">
+          <FileText strokeWidth={2.5} className="h-5 w-5 text-slate-500" />
+          <span className="text-[13px] font-black uppercase tracking-[0.3em] text-slate-200">Infrastructure State</span>
         </div>
+        <Badge className="bg-[#161B22] text-slate-400 border border-white/10 font-black tracking-widest px-3 py-1 uppercase text-[10px]">Verified Ledger</Badge>
       </div>
 
-      <div className="border border-border bg-card/5 rounded-2xl overflow-hidden text-left">
+      <div className="border border-white/10 bg-[#161B22] rounded-2xl overflow-hidden shadow-2xl">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-border bg-white/5">
-              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Name</th>
-              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Type</th>
-              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Value</th>
-              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</th>
-              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-right">Updated</th>
+            <tr className="border-b border-white/5 bg-white/5">
+              <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Designation</th>
+              <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Protocol</th>
+              <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Value Sync</th>
+              <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Execution</th>
+              <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Heartbeat</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/50">
+          <tbody className="divide-y divide-white/5">
             {mandates.map((m) => (
               <tr
                 key={m.id}
                 onClick={() => setSelectedMandate(m)}
                 className="hover:bg-white/5 transition-all group cursor-pointer"
               >
-                <td className="px-6 py-5">
-                  <span className="text-sm font-bold text-white group-hover:text-primary transition-colors max-w-[200px] truncate block">{m.name}</span>
+                <td className="px-8 py-6">
+                  <span className="text-base font-black text-slate-200 group-hover:text-white transition-colors tracking-tight uppercase">{m.name}</span>
                 </td>
-                <td className="px-6 py-5">
-                  <span className="text-xs text-muted-foreground font-medium">{m.type}</span>
+                <td className="px-8 py-6">
+                  <Badge variant="outline" className="text-[9px] font-black uppercase tracking-wider border-white/5 text-slate-500">{m.type}</Badge>
                 </td>
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">{m.value}</span>
-                    {m.status === 'active' && <TrendingUp className="h-3 w-3 text-primary" />}
+                <td className="px-8 py-6">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-black text-slate-200 group-hover:text-white transition-colors tracking-tighter">{m.value}</span>
+                    {m.status === 'active' && <TrendingUp strokeWidth={2.5} className="h-3.5 w-3.5 text-white/40 animate-pulse" />}
                   </div>
                 </td>
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-4">
-                    {m.status === "secured" && (
-                      <div className="px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full flex items-center gap-1.5 ring-1 ring-yellow-500/30 animate-pulse">
-                        <Shield className="h-3 w-3 text-yellow-500" />
-                        <span className="text-[10px] font-black uppercase text-yellow-500 tracking-widest">Secured</span>
-                      </div>
-                    )}
-                    <div className={`px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                      m.status === "active" ? "bg-primary/10 border border-primary/20 text-primary" :
-                      m.status === "secured" ? "bg-white/5 border border-white/10 text-white" :
-                      "bg-green-500/10 border border-green-500/20 text-green-500"
-                    }`}>
-                      <div className={`h-1.5 w-1.5 rounded-full ${
-                        m.status === "active" ? "bg-primary animate-pulse" :
-                        m.status === "secured" ? "bg-white" :
-                        "bg-green-500"
-                      }`} />
-                      <span className="text-[10px] font-black uppercase tracking-widest leading-none">
-                        {m.status === "secured" ? "Review Pending" : m.status}
+                <td className="px-8 py-6">
+                  <div className="flex items-center gap-6">
+                    <div className={cn(
+                      "px-3 py-1 rounded-lg flex items-center gap-2 border transition-all",
+                      m.status === "active" ? "bg-[#F97316]/10 text-[#F97316] border-[#F97316]/30 shadow-[0_0_15px_rgba(249,115,22,0.1)]" :
+                        m.status === "executed" ? "bg-[#35D07F]/10 text-[#35D07F] border-[#35D07F]/30 shadow-[0_0_15px_rgba(53,208,127,0.1)]" :
+                          "bg-white/5 text-slate-400 border-white/5"
+                    )}>
+                      <div className={cn(
+                        "h-2 w-2 animate-pulse",
+                        m.status === "active" ? "bg-[#F97316] shadow-[0_0_10px_#F97316]" :
+                          m.status === "executed" ? "bg-[#35D07F] shadow-[0_0_10px_#35D07F]" :
+                            "bg-slate-600"
+                      )} />
+                      <span className="text-[10px] font-black uppercase tracking-[0.15em] leading-none">
+                        {m.status}
                       </span>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-5 text-right">
-                  <div className="flex items-center justify-end gap-2 text-[10px] text-muted-foreground font-bold uppercase">
-                    <Clock className="h-3 w-3" />
+                <td className="px-8 py-6 text-right">
+                  <div className="flex items-center justify-end gap-2 text-[10px] text-slate-600 font-black uppercase tracking-wider">
+                    <Clock strokeWidth={2.5} className="h-3.5 w-3.5" />
                     {m.lastUpdated}
                   </div>
                 </td>
@@ -219,142 +124,181 @@ export function MandateTable() {
 function MandateDetailModal({ mandate, onClose }: { mandate: Mandate, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'intent' | 'agent'>('agent');
 
+  let parsedMetadata: any = null;
+  try {
+    if (mandate.fullGoal.startsWith('{')) {
+      parsedMetadata = JSON.parse(mandate.fullGoal);
+    }
+  } catch (e) {
+    console.log("Metadata not JSON");
+  }
+
+  const displayGoal = parsedMetadata?.goal || mandate.fullGoal;
+  const delegation = parsedMetadata?.delegation;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <motion.div 
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-8">
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/90 backdrop-blur-md"
+        className="absolute inset-0 bg-[#0F1216]/95 backdrop-blur-sm"
       />
-      
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 30 }}
-        className="relative w-full max-w-2xl bg-[#050505]/80 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl"
+        exit={{ opacity: 0, scale: 0.95, y: 50 }}
+        className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#161B22] border-2 border-white/10 rounded-[2rem] shadow-[0_50px_100px_rgba(0,0,0,0.8)] scrollbar-hide"
       >
-        {/* Institutional Accent Bar */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/0 via-primary to-primary/0 opacity-50" />
-        
-        <div className="p-10 space-y-10">
+        {/* Institutional Header Bar */}
+        <div className="h-1.5 w-full bg-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)]" />
+
+        <div className="p-12 space-y-12">
           <div className="flex items-start justify-between">
-            <div className="flex items-center gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-inner">
-                 <Shield className="h-7 w-7 text-primary" />
+            <div className="flex items-center gap-6">
+              <div className="h-16 w-16 rounded-xl bg-[#121821] border border-white/10 flex items-center justify-center shadow-xl">
+                <Shield strokeWidth={2.5} className="h-8 w-8 text-slate-500" />
               </div>
-              <div className="space-y-1">
-                <h3 className="text-3xl font-black text-white tracking-tighter">Mission Mandate</h3>
-                <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60 font-mono">ID: {mandate.id.slice(0, 16)}</span>
-                   <div className="h-1 w-1 rounded-full bg-white/20" />
-                   <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40 font-mono">SEPOLIA-V1</span>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-white tracking-tight uppercase leading-none">Mission Control</h3>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 border-white/5 bg-white/5 px-2 py-0.5">ID: {mandate.id.toUpperCase()}</Badge>
+                  <Badge className="text-[9px] font-black uppercase tracking-[0.2em] bg-white/5 text-slate-400 border-none px-2 py-0.5">Verified Node</Badge>
                 </div>
               </div>
             </div>
-            <button 
-              onClick={onClose} 
-              className="h-10 w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/5 rounded-full transition-all active:scale-95 group"
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              className="h-14 w-14 flex items-center justify-center bg-[#121821] hover:bg-destructive hover:text-white border-2 border-white/10 rounded-2xl transition-all active:scale-90 group"
             >
-              <X className="h-5 w-5 text-muted-foreground group-hover:text-white transition-colors" />
+              <X strokeWidth={2.5} className="h-8 w-8 text-muted-foreground/40 group-hover:text-white transition-colors" />
+            </Button>
+          </div>
+
+          <div className="flex p-1.5 bg-[#121821] rounded-xl border border-white/5 shadow-inner">
+            <button
+              onClick={() => setActiveTab('intent')}
+              className={`flex-1 flex items-center justify-center gap-3 py-4 text-[11px] uppercase font-black tracking-[0.2em] rounded-lg transition-all duration-300 ${activeTab === 'intent' ? 'bg-[#1F242C] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              <Info strokeWidth={2.5} className="h-4 w-4" />
+              Intent Spec
+            </button>
+            <button
+              onClick={() => setActiveTab('agent')}
+              className={`flex-1 flex items-center justify-center gap-3 py-4 text-[11px] uppercase font-black tracking-[0.2em] rounded-lg transition-all duration-300 ${activeTab === 'agent' ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:text-white/60'}`}
+            >
+              <Terminal strokeWidth={2.5} className="h-4 w-4" />
+              Agent Reasoning
             </button>
           </div>
 
-          <div className="flex p-1.5 bg-black/40 rounded-2xl border border-white/5 shadow-inner">
-             <button 
-               onClick={() => setActiveTab('intent')}
-               className={`flex-1 flex items-center justify-center gap-3 py-3 text-[10px] uppercase font-black tracking-[0.2em] rounded-xl transition-all duration-300 ${activeTab === 'intent' ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(255,255,255,0.05)]' : 'text-muted-foreground hover:text-white/60'}`}
-             >
-                <Info className="h-3.5 w-3.5" />
-                Mission Intent
-             </button>
-             <button 
-               onClick={() => setActiveTab('agent')}
-               className={`flex-1 flex items-center justify-center gap-3 py-3 text-[10px] uppercase font-black tracking-[0.2em] rounded-xl transition-all duration-300 ${activeTab === 'agent' ? 'bg-primary/20 text-primary shadow-lg' : 'text-muted-foreground hover:text-primary/60'}`}
-             >
-                <Terminal className="h-3.5 w-3.5" />
-                Agent Reasoning
-             </button>
-          </div>
-
-          <div className="min-height-[420px]">
+          <div className="min-h-[500px]">
             {activeTab === 'intent' ? (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-8"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-12"
               >
-                <div className="space-y-3">
-                   <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">CFO Master Directive</span>
-                     <div className="h-px flex-1 bg-white/5" />
-                   </div>
-                   <div className="p-8 bg-white/[0.02] border border-white/5 rounded-[2rem] shadow-inner">
-                      <p className="text-xl text-white/90 leading-tight font-black tracking-tight italic">
-                        "{mandate.fullGoal}"
-                      </p>
-                   </div>
+                <div className="space-y-5">
+                  <div className="flex items-center gap-4">
+                    <span className="text-[12px] font-black uppercase tracking-[0.4em] text-muted-foreground/30 text-nowrap">CFO MASTER DIRECTIVE STREAM</span>
+                    <div className="h-0.5 flex-1 bg-border/20" />
+                  </div>
+                  <div className="p-8 bg-[#121821] border border-white/5 rounded-2xl shadow-xl relative overflow-hidden group">
+                    <p className="text-xl text-slate-200 leading-tight font-black tracking-tight relative z-10 uppercase italic">
+                      "{displayGoal}"
+                    </p>
+                  </div>
                 </div>
+
+                {delegation && (
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-4">
+                      <span className="text-[12px] font-black uppercase tracking-[0.4em] text-white/20 text-nowrap">CRYPTOGRAPHIC DELEGATION EIP 191</span>
+                      <div className="h-0.5 flex-1 bg-white/5" />
+                    </div>
+                    <div className="p-6 bg-white/5 border border-white/10 rounded-xl flex flex-col gap-4 shadow-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Shield strokeWidth={2.5} className="h-5 w-5 text-[#35D07F]" />
+                            <span className="text-[12px] font-black text-white uppercase tracking-widest">Verified Signature</span>
+                          </div>
+                          <Badge className="bg-[#35D07F]/20 text-[#35D07F] font-black tracking-[0.2em] px-3 py-1 uppercase text-[9px]">Authorized</Badge>
+                        </div>
+                        <div className="space-y-3">
+                          <p className="text-[12px] text-white font-black leading-relaxed uppercase tracking-tight italic">
+                            {delegation.statement}
+                          </p>
+                          <div className="p-4 bg-black/40 border border-white/5 rounded-lg font-mono text-[10px] text-white break-all select-all shadow-inner uppercase tracking-tighter opacity-80">
+                            {delegation.signature}
+                          </div>
+                        </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-6">
-                   <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[1.5rem] flex flex-col gap-2 relative group hover:border-primary/30 transition-colors">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Procurement Budget</span>
-                      <div className="flex items-baseline gap-2">
-                         <span className="text-3xl font-black text-white tracking-tighter group-hover:text-primary transition-colors">{mandate.value}</span>
-                         <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{mandate.token}</span>
-                      </div>
-                      <div className="absolute top-4 right-4 h-8 w-8 rounded-full bg-white/5 flex items-center justify-center">
-                         <Coins className="h-4 w-4 text-white/20" />
-                      </div>
-                   </div>
-                   <div className="p-6 bg-primary/[0.02] border border-primary/20 rounded-[1.5rem] flex flex-col gap-2">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">Authorization Status</span>
-                      <div className="flex items-center gap-3">
-                         <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                         <span className="text-lg font-black text-white uppercase tracking-tighter">{mandate.status}</span>
-                      </div>
-                   </div>
+                  <div className="p-6 bg-[#121821] border border-white/5 rounded-xl flex flex-col gap-2 relative group hover:border-white/20 transition-all shadow-xl max-w-full overflow-hidden">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Procurement Budget</span>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-4xl font-black text-slate-200 tracking-tight group-hover:text-white transition-colors duration-500">{mandate.value}</span>
+                      <span className="text-[12px] font-black text-slate-600 uppercase tracking-[0.2em]">{mandate.token}</span>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-[#121821] border border-white/5 rounded-xl flex flex-col gap-2 shadow-xl group transition-all hover:bg-white/5">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Authorization State</span>
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "h-3 w-3 rounded-full animate-pulse shadow-[0_0_15px_rgba(53,208,127,0.4)]",
+                        mandate.status === 'executed' ? 'bg-[#35D07F]' : 'bg-[#F97316] shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                      )} />
+                      <span className={cn(
+                        "text-xl font-black uppercase tracking-tighter",
+                        mandate.status === 'executed' ? 'text-[#35D07F]' : 'text-[#F97316]'
+                      )}>{mandate.status}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                   <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Immutable Record</span>
-                     <div className="h-px flex-1 bg-white/5" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4 font-mono text-[9px] p-5 bg-black/40 rounded-2xl border border-white/5">
-                      <div className="space-y-1">
-                        <span className="text-muted-foreground/40 block">ATTESTATION</span>
-                        <span className="text-white/60 truncate block">{mandate.id}</span>
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-4">
+                      <span className="text-[12px] font-black uppercase tracking-[0.4em] text-muted-foreground/30 text-nowrap">IMMUTABLE ONCHAIN RECORD</span>
+                      <div className="h-0.5 flex-1 bg-border/10" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-6 font-mono text-[11px] p-8 bg-[#0F1216] rounded-3xl border-2 border-white/5 shadow-inner overflow-hidden">
+                      <div className="space-y-2 min-w-0">
+                        <span className="text-muted-foreground/20 block font-black uppercase tracking-widest text-nowrap">ATTESTATION ID</span>
+                        <span className="text-white/40 truncate block uppercase tracking-tighter">{mandate.id}</span>
                       </div>
-                      <div className="space-y-1">
-                        <span className="text-muted-foreground/40 block">TOKEN-PAIR</span>
-                        <span className="text-white/60 truncate block">{mandate.token}/CELO-SEP</span>
+                      <div className="space-y-2 min-w-0">
+                        <span className="text-muted-foreground/20 block font-black uppercase tracking-widest text-nowrap">ASSET IDENTITY</span>
+                        <span className="text-white/40 truncate block uppercase tracking-tighter">{mandate.token}/CELO-SOVEREIGN</span>
                       </div>
-                   </div>
-                </div>
+                    </div>
+                  </div>
               </motion.div>
             ) : (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="h-full"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="h-full bg-black rounded-[3rem] p-1 border-2 border-border/20"
               >
                 <ReasoningDisplay mandateId={mandate.id} />
               </motion.div>
             )}
           </div>
 
-          <div className="pt-4">
-             <a 
-                href={`https://celo-sepolia.blockscout.com/address/${AEGIS_ESCROW_ADDRESS}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-3 w-full py-5 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 rounded-2xl transition-all group"
-              >
-                <span className="text-[10px] font-black uppercase tracking-[0.3em]">Check On-Chain Vault Status</span>
-                <ExternalLink className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
+          <div className="pt-10">
+            <Button
+              className="w-full h-20 bg-[#0F1216] hover:bg-white hover:text-black text-slate-400 border-2 border-white/5 rounded-3xl transition-all group shadow-2xl"
+              onClick={() => window.open(`https://celo-sepolia.blockscout.com/address/${AEGIS_ESCROW_ADDRESS}`, '_blank')}
+            >
+              <span className="text-[14px] font-black uppercase tracking-[0.5em]">CHECK_ONCHAIN_VAULT_DEEP_STATE</span>
+              <ExternalLink strokeWidth={2.5} className="h-6 w-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            </Button>
           </div>
         </div>
       </motion.div>
