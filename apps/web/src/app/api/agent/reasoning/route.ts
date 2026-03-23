@@ -21,11 +21,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const mandateId = searchParams.get('mandateId');
 
+  const store = await getStore();
+
   if (!mandateId) {
-    return NextResponse.json({ error: 'Mandate ID is required' }, { status: 400 });
+    // Return the entire store for the global ActivityPanel
+    return NextResponse.json(store);
   }
 
-  const store = await getStore();
   const reasoning = store[mandateId.toLowerCase()] || {
     status: 'pending',
     logs: ['Awaiting agent initialization...']
@@ -37,7 +39,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { mandateId, reasoning, status, log } = body;
+    const { mandateId, reasoning, status, log, settledHash, missionGoal } = body;
 
     if (!mandateId) {
       return NextResponse.json({ error: 'Mandate ID is required' }, { status: 400 });
@@ -56,6 +58,8 @@ export async function POST(request: Request) {
 
     if (reasoning) store[idLower].reasoning = reasoning;
     if (status) store[idLower].status = status;
+    if (settledHash) store[idLower].settledHash = settledHash;
+    if (missionGoal) store[idLower].missionGoal = missionGoal;
     if (log) {
       store[idLower].logs.push(`[${new Date().toLocaleTimeString()}] ${log}`);
       if (store[idLower].logs.length > 20) {

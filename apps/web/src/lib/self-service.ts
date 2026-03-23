@@ -1,6 +1,5 @@
-import { ATTESTATION_ID } from "@selfxyz/core";
 import { SelfAppBuilder } from "@selfxyz/qrcode";
-import { MOCK_SELF_REGISTRY_ADDRESS, SELF_HUB_ADDRESS } from "./contracts";
+import { MOCK_SELF_REGISTRY_ADDRESS } from "./contracts";
 
 // Configuration for Self Protocol
 export const SELF_SCOPE =

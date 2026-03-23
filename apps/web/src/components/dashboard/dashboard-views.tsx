@@ -1,9 +1,10 @@
-"use client"
-
+import { useState, useEffect } from "react"
 import { StatCard } from "./stat-card"
 import { PortfolioSummary } from "./portfolio-summary"
 import { MandateTable } from "./mandate-table"
-import { Shield, Activity, TrendingUp, AlertCircle, Clock, Settings as SettingsIcon, Info } from "lucide-react"
+import { Shield, Activity, TrendingUp, AlertCircle, Clock, Settings as SettingsIcon, Info, Plus, Zap, Cpu } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 interface ViewProps {
   allocation?: { label: string; value: number; color: string }[]
@@ -12,103 +13,83 @@ interface ViewProps {
 import { useEscrowMetrics } from "@/hooks/use-escrow-metrics"
 import { usePortfolioBalance } from "@/hooks/use-portfolio-balance"
 
-interface ViewProps {
-  allocation?: { label: string; value: number; color: string }[]
-}
+import { useMandates } from "@/hooks/use-mandates"
+import { MissionCard } from "./mission-card"
 
 export function OverviewView() {
   const { totalValueLocked, isLoading: isEscrowLoading } = useEscrowMetrics();
   const { totalBalance, allocation, isLoading: isPortfolioLoading } = usePortfolioBalance();
+  const { mandates, isLoading: isMandatesLoading } = useMandates();
+
+  // Combine reasoning data into mandates if available
+  const [reasoningData, setReasoningData] = useState<Record<string, any>>({})
+  useEffect(() => {
+    fetch("/api/agent/reasoning").then(res => res.json()).then(setReasoningData)
+  }, [])
+
+  const enrichedMandates = mandates.map((m: any) => ({
+    ...m,
+    reasoning: reasoningData[m.id.toLowerCase()]?.reasoning?.plan || reasoningData[m.id]?.reasoning?.plan
+  }))
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      {/* Top Row: Hero Summary & Key Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <PortfolioSummary 
-            balance={isPortfolioLoading ? "..." : totalBalance} 
-            change="+0.00%" 
-            allocation={allocation} 
-          />
+    <div className="space-y-16 animate-in fade-in duration-1000">
+      {/* 1. Tactical Intelligence Summary */}
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center gap-4">
+          <div className="h-1.5 w-8 bg-white/40 shadow-[0_0_10px_rgba(255,255,255,0.1)]" />
+          <h2 className="text-[13px] font-black uppercase tracking-[0.3em] text-slate-200">Intelligence Overview</h2>
         </div>
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            <StatCard 
-             label="Total Escrow Value" 
+             label="SOVEREIGN ASSETS" 
+             value={isPortfolioLoading ? "..." : totalBalance} 
+             trend={{ value: "2.4%", positive: true }}
+             icon={<TrendingUp className="h-6 w-6" />}
+           />
+           <StatCard 
+             label="ESCROW_PROTOCOL_TVL" 
              value={isEscrowLoading ? "..." : `$${totalValueLocked}`} 
-             subValue="Active Strategic Mandates"
              trend={{ value: "4.2%", positive: true }}
-             icon={<Activity className="h-4 w-4" />}
+             icon={<Activity className="h-6 w-6" />}
            />
            <StatCard 
-             label="Agent Performance" 
-             value="99.8%" 
-             subValue="Agent Nova: Analyzing 47 Markets"
-             trend={{ value: "Optimizing", positive: true }}
-             icon={<TrendingUp className="h-4 w-4" />}
+             label="ACTIVE_DIRECTIVES" 
+             value={mandates.length} 
+             trend={{ value: "OPTIMIZING", positive: true }}
+             icon={<Shield className="h-6 w-6" />}
            />
-           <div className="p-4 rounded-xl border border-destructive/10 bg-destructive/5 flex gap-3">
-              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                 <p className="text-[10px] font-bold uppercase tracking-widest text-destructive">System Alert</p>
-                 <p className="text-[10px] text-muted-foreground/80 leading-relaxed">Mandate #24 requires human re-authorization for transaction above $200k threshold.</p>
-              </div>
-           </div>
         </div>
       </div>
 
-      {/* Middle Row: Active Mandates Table */}
-      <div className="pt-4">
-         <MandateTable />
-      </div>
-
-      {/* Bottom Row: Registry Highlights & Activity Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-4">
-         <div className="p-6 border border-border bg-card/10 rounded-2xl flex flex-col gap-6">
-            <div className="flex justify-between items-center">
-               <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Registry Highlights</span>
-               <button className="text-[10px] uppercase font-bold text-primary hover:underline">View All</button>
+      {/* 2. Mission Grid */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+           <div className="flex items-center gap-4">
+              <Cpu strokeWidth={2.5} className="h-5 w-5 text-slate-500" />
+              <h2 className="text-[13px] font-black uppercase tracking-[0.3em] text-slate-200">Active Missions</h2>
+           </div>
+           <Badge variant="outline" className="border-white/10 text-slate-400 font-black px-3 py-0.5 tracking-wider text-[9px] uppercase bg-white/5">Deep Sync Active</Badge>
+        </div>
+        
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-24">
+          {isMandatesLoading ? (
+            [1, 2, 3, 4].map(i => (
+              <div key={i} className="h-[380px] rounded-2xl bg-[#161B22] border border-white/5 border-dashed animate-pulse flex items-center justify-center">
+                 <span className="text-slate-600 font-bold tracking-[0.2em] text-[10px] uppercase">Initializing Node {i}</span>
+              </div>
+            ))
+          ) : enrichedMandates.length === 0 ? (
+            <div className="col-span-full py-40 text-center border-2 border-dashed border-white/5 rounded-3xl bg-[#161B22]/40">
+               <Shield className="h-12 w-12 text-slate-800 mx-auto mb-4" />
+               <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-slate-600">No primary mandates detected.</p>
             </div>
-            <div className="space-y-4">
-               {[
-                  { l: "Aegis Agent #0", v: "Verified", s: "Registry" },
-                  { l: "USDM Reserve", v: "Active", s: "Escrow" },
-                  { l: "Nova Intelligence", v: "99.8%", s: "Agent" },
-               ].map((item, i) => (
-                  <div key={i} className="flex justify-between items-center py-2 border-b border-border last:border-none">
-                     <span className="text-xs text-white/80">{item.l}</span>
-                     <div className="text-right">
-                        <p className="text-xs font-bold text-white leading-none">{item.v}</p>
-                        <p className="text-[9px] text-muted-foreground uppercase font-bold leading-none mt-1">{item.s}</p>
-                     </div>
-                  </div>
-               ))}
-            </div>
-         </div>
-
-         <div className="lg:col-span-2 p-6 border border-border bg-card/10 rounded-2xl flex flex-col gap-6">
-            <div className="flex justify-between items-center">
-               <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Intelligence Stream</span>
-               <Activity className="h-3 w-3 text-primary animate-pulse" />
-            </div>
-            <div className="space-y-4 font-mono text-[10px] text-muted-foreground/80 lowercase">
-                <p className="flex items-start gap-4 hover:text-white transition-colors cursor-default">
-                   <span className="text-primary/50 text-right w-16">Active</span>
-                   <span>- agent [nova] monitoring celo sepolia liquidity... [system_ready]</span>
-                </p>
-                <p className="flex items-start gap-4 hover:text-white transition-colors cursor-default">
-                   <span className="text-primary/50 text-right w-16">Sync</span>
-                   <span>- identifying opportunity in [usdm/usdt] pool for autonomous rebalancing.</span>
-                </p>
-                <p className="flex items-start gap-4 hover:text-white transition-colors cursor-default">
-                   <span className="text-primary/50 text-right w-16">Verify</span>
-                   <span>- [aegis_identity] verified via [self_protocol]. session keys rotated.</span>
-                </p>
-                <p className="flex items-start gap-4 hover:text-white transition-colors cursor-default">
-                   <span className="text-primary/50 text-right w-16">Action</span>
-                   <span>- mandate initialized. awaiting final on-chain settlement proof...</span>
-                </p>
-            </div>
-         </div>
+          ) : (
+            enrichedMandates.map((mandate) => (
+              <MissionCard key={mandate.id} mandate={mandate} />
+            ))
+          )}
+        </div>
       </div>
     </div>
   )
@@ -116,30 +97,37 @@ export function OverviewView() {
 
 export function RegistryView() {
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div className="p-8 border border-border bg-card/5 rounded-[2rem] space-y-6">
-          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-            <Shield className="h-6 w-6 text-primary" />
+    <div className="space-y-12 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between border-b border-white/5 pb-6">
+         <div className="flex items-center gap-4">
+            <Shield className="h-6 w-6 text-primary/60" />
+            <h2 className="text-[15px] font-bold uppercase tracking-[0.3em] text-slate-200">Protocol Registry</h2>
+         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="p-8 bg-[#161B22] border border-white/5 rounded-2xl space-y-6 hover:border-[#35D07F]/20 transition-all group shadow-2xl">
+          <div className="h-14 w-14 rounded-xl bg-[#121821] flex items-center justify-center border border-white/10 group-hover:bg-[#35D07F] transition-colors duration-500 shadow-xl">
+            <Shield strokeWidth={2.5} className="h-8 w-8 text-slate-500 group-hover:text-black transition-colors" />
           </div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-bold">Protocol Registry</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Manage authorized agents and protocols within your confidential workspace.
+          <div className="space-y-3">
+            <h3 className="text-xl font-black text-white tracking-tight uppercase group-hover:text-[#35D07F] transition-colors">Security Module</h3>
+            <p className="text-[13px] text-slate-400 font-black leading-relaxed opacity-60">
+              Institutional grade zk-proof authorization for cross-protocol settlement.
             </p>
           </div>
-          <button className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all">
-            Browse Registry
-          </button>
+          <Button className="w-full h-12 bg-white/5 border border-white/5 text-slate-200 font-bold uppercase tracking-[0.2em] hover:bg-white/10 hover:border-white/10 transition-all rounded-xl">
+            Access Protocol
+          </Button>
         </div>
         
         {/* Placeholder for more registry items */}
         {[1, 2].map((i) => (
-          <div key={i} className="p-8 border border-border border-dashed bg-transparent rounded-[2rem] flex flex-col items-center justify-center text-center space-y-4 opacity-40">
-            <div className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-              <Plus className="h-5 w-5" />
+          <div key={i} className="p-10 bg-transparent border-4 border-dashed border-border/20 rounded-3xl flex flex-col items-center justify-center text-center space-y-6 opacity-30 group hover:opacity-100 transition-opacity">
+            <div className="h-14 w-14 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center group-hover:border-[#35D07F] transition-colors">
+              <Plus strokeWidth={2.5} className="h-8 w-8 text-muted-foreground group-hover:text-[#35D07F]" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest">Connect New Module</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-muted-foreground group-hover:text-[#35D07F] transition-colors whitespace-nowrap">DEPLOY_MODULE</span>
           </div>
         ))}
       </div>
@@ -147,30 +135,14 @@ export function RegistryView() {
   )
 }
 
-function Plus({ className }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  )
-}
-
 export function MandatesView() {
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="p-8 border border-border bg-card/5 rounded-[2rem]">
+       <div className="flex items-center gap-3 mb-2">
+          <div className="h-1 w-8 bg-white/40" />
+          <h2 className="text-[13px] font-black uppercase tracking-[0.3em] text-slate-200">Management Console</h2>
+       </div>
+      <div className="p-8 bg-[#161B22] border border-white/10 rounded-2xl shadow-2xl">
         <MandateTable />
       </div>
     </div>
@@ -180,24 +152,25 @@ export function MandatesView() {
 export function ActivityView() {
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="border border-border bg-card/5 rounded-[2rem] overflow-hidden">
-        <div className="p-6 border-b border-border bg-white/5 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Global Activity Log</span>
+      <div className="bg-[#161B22] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-white/5 bg-[#121821] flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Activity strokeWidth={2.5} className="h-5 w-5 text-slate-500" />
+            <span className="text-[12px] font-black uppercase tracking-[0.3em] text-slate-200">System Telemetry</span>
           </div>
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Real-time Sync</span>
+          <Badge className="bg-white/10 text-white border border-white/10 font-black tracking-widest px-3 py-1 text-[9px] uppercase">Live</Badge>
         </div>
-        <div className="p-8 space-y-6 font-mono text-xs">
+        <div className="p-8 space-y-6 font-mono">
            {[
-             { time: "23:14:02", msg: "Self Protocol [zk_proof] verified for Alex Dubois." },
-             { time: "23:12:45", msg: "Agent Nova initialized market scanning for ARB/cUSD pool." },
-             { time: "22:45:10", msg: "Arkhai Escrow #112 finalized. Settlement release authorized." },
-             { time: "21:30:00", msg: "Daily treasury rebalance completed. +0.02% optimization." },
+             { time: "23:14:02", msg: "ZK_PROOF_VERIFIED_IDENTITY: ALEX DUBOIS", type: "success" },
+             { time: "23:12:45", msg: "MARKET_SCAN: ARB/CUSD POOL_DETECTED", type: "info" },
+             { time: "22:45:10", msg: "SETTLEMENT_FINALIZED: ESCROW_ID_112", type: "success" },
+             { time: "21:30:00", msg: "DAILY_TREASURY_REBALANCE_COMPLETED", type: "info" },
+             { time: "20:15:22", msg: "SENTINEL_SCAN: NO_THREAT_DETECTED", type: "info" },
            ].map((log, i) => (
-             <div key={i} className="flex gap-6 items-start group">
-                <span className="text-primary/40 group-hover:text-primary transition-colors">{log.time}</span>
-                <span className="text-muted-foreground group-hover:text-white transition-colors">{log.msg}</span>
+             <div key={i} className="flex gap-8 items-center group border-l-2 border-transparent hover:border-primary/40 pl-4 transition-all">
+                <span className="text-[11px] font-black text-slate-600 group-hover:text-white transition-colors w-20">{log.time}</span>
+                <span className="text-[12px] font-black text-slate-400 group-hover:text-slate-200 transition-colors uppercase tracking-tight">{log.msg}</span>
              </div>
            ))}
         </div>
@@ -208,24 +181,24 @@ export function ActivityView() {
 
 export function SettingsView() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] border border-border border-dashed rounded-[3rem] space-y-6 animate-in fade-in duration-500">
-      <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-        <SettingsIcon className="h-8 w-8 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center min-h-[500px] border-2 border-dashed border-white/5 bg-[#161B22]/30 rounded-3xl space-y-10 animate-in fade-in duration-700">
+      <div className="h-20 w-20 rounded-2xl bg-[#121821] border border-white/5 flex items-center justify-center shadow-2xl">
+        <SettingsIcon strokeWidth={2.5} className="h-10 w-10 text-slate-700 animate-spin-slow" />
       </div>
-      <div className="text-center space-y-2">
-        <h3 className="text-xl font-bold">Workspace Settings</h3>
-        <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-          Configuration options for your institutional Aegis workspace will appear here.
+      <div className="text-center space-y-3">
+        <h3 className="text-2xl font-bold text-white uppercase tracking-tight">System Configuration</h3>
+        <p className="text-[13px] text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
+          The Aegis sovereign infrastructure is currently operating at peak efficiency. Parameters are immutable during active sessions.
         </p>
       </div>
-      <div className="flex gap-4">
-        <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex items-center gap-2">
-           <div className="h-2 w-2 rounded-full bg-green-500" />
-           <span className="text-[10px] font-bold uppercase tracking-widest">Identity Linked</span>
+      <div className="flex gap-6">
+        <div className="px-5 py-2.5 bg-[#121821] border border-white/5 rounded-xl flex items-center gap-3 shadow-xl">
+           <div className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_10px_rgba(255,255,255,0.1)] animate-pulse" />
+           <span className="text-[10px] font-black text-slate-200 uppercase tracking-[0.2em]">Secure Link Active</span>
         </div>
-        <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex items-center gap-2">
-           <Info className="h-3 w-3 text-primary" />
-           <span className="text-[10px] font-bold uppercase tracking-widest">v0.1.0-alpha</span>
+        <div className="px-5 py-2.5 bg-[#121821] border border-white/5 rounded-xl flex items-center gap-3 shadow-xl">
+           <Info strokeWidth={2.5} className="h-4 w-4 text-slate-500" />
+           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">v.1.0.4 Sovereign</span>
         </div>
       </div>
     </div>

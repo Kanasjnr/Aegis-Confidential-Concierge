@@ -22,9 +22,9 @@ export function WealthMatrix({ tvl, trend, allocation }: WealthMatrixProps) {
           >
             {tvl} <span className="text-muted-foreground text-3xl ml-2">cUSD</span>
           </motion.h1>
-          <div className="flex items-center gap-1.5 text-primary">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-sm font-bold">{trend}</span>
+          <div className="flex items-center gap-1.5 text-white">
+            <TrendingUp strokeWidth={2.5} className="h-4 w-4" />
+            <span className="text-sm font-black">{trend}</span>
           </div>
         </div>
       </div>
@@ -33,8 +33,8 @@ export function WealthMatrix({ tvl, trend, allocation }: WealthMatrixProps) {
         {/* Asset Allocation Bar */}
         <div className="space-y-4">
           <div className="flex justify-between items-end">
-            <span className="text-label">Asset Allocation</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Diversity Index: 0.84</span>
+            <span className="text-label font-black uppercase tracking-widest text-[10px]">Asset Allocation</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black opacity-40">Diversity Index: 0.84</span>
           </div>
           <div className="h-1.5 w-full bg-white/5 flex rounded-full overflow-hidden">
             {allocation.map((item, i) => (
@@ -48,8 +48,8 @@ export function WealthMatrix({ tvl, trend, allocation }: WealthMatrixProps) {
           <div className="flex gap-6">
             {allocation.map((item, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{item.label} {item.value}%</span>
+                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: i === 0 ? 'white' : i === 1 ? '#64748b' : '#334155' }} />
+                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">{item.label} {item.value}%</span>
               </div>
             ))}
           </div>
@@ -62,8 +62,8 @@ export function WealthMatrix({ tvl, trend, allocation }: WealthMatrixProps) {
                d="M 0 80 Q 50 10, 100 70 T 200 60 T 300 85 T 400 40" 
                fill="none" 
                stroke="currentColor" 
-               strokeWidth="1" 
-               className="text-primary/40 group-hover:text-primary transition-colors duration-500"
+               strokeWidth="2" 
+               className="text-white/20 group-hover:text-white transition-colors duration-500"
              />
            </svg>
            <div className="absolute inset-0 flex items-center justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">

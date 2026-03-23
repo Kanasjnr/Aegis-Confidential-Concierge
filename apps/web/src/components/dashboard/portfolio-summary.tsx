@@ -10,12 +10,12 @@ interface PortfolioSummaryProps {
 
 export function PortfolioSummary({ balance, change, allocation }: PortfolioSummaryProps) {
   return (
-    <div className="p-8 border border-border bg-card/5 rounded-2xl space-y-8">
+    <div className="p-8 border border-white/5 bg-[#121821] rounded-2xl space-y-8 shadow-2xl group hover:border-white/10 transition-all">
       <div className="flex flex-col gap-1">
         <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Portfolio Balance</span>
         <div className="flex items-baseline gap-4">
-           <h1 className="text-4xl font-bold tracking-tight text-white">{balance} <span className="text-muted-foreground text-2xl font-light ml-1">USD</span></h1>
-           <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-sm">{change} Today</span>
+           <h1 className="text-4xl font-black tracking-tight text-white uppercase">{balance} <span className="text-slate-500 text-2xl font-black ml-1 uppercase">USD</span></h1>
+           <span className="text-[10px] font-black text-white bg-white/10 px-3 py-1 rounded-md border border-white/10 uppercase tracking-widest">{change} Today</span>
         </div>
       </div>
 
@@ -29,8 +29,8 @@ export function PortfolioSummary({ balance, change, allocation }: PortfolioSumma
           {allocation.map((item, i) => (
             <div 
               key={i} 
-              style={{ width: `${item.value}%`, backgroundColor: item.color }} 
-              className="h-full border-r border-background/20 last:border-none"
+              style={{ width: `${item.value}%`, backgroundColor: i === 0 ? 'white' : i === 1 ? '#64748b' : i === 2 ? '#334155' : '#1e293b' }} 
+              className="h-full border-r border-[#0F1216]/20 last:border-none"
             />
           ))}
         </div>
@@ -38,10 +38,10 @@ export function PortfolioSummary({ balance, change, allocation }: PortfolioSumma
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {allocation.map((item, i) => (
             <div key={i} className="flex items-center gap-2">
-               <div className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+               <div className="h-2 w-2 rounded-full" style={{ backgroundColor: i === 0 ? 'white' : i === 1 ? '#64748b' : i === 2 ? '#334155' : '#1e293b' }} />
                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">{item.label}</span>
-                  <span className="text-[10px] text-muted-foreground">{item.value}%</span>
+                  <span className="text-[10px] font-black text-white uppercase tracking-wider">{item.label}</span>
+                  <span className="text-[10px] text-slate-500 font-black uppercase">{item.value}%</span>
                </div>
             </div>
           ))}

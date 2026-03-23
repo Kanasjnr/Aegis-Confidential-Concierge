@@ -1,6 +1,6 @@
-"use client"
-
 import { ReactNode } from "react"
+import { cn } from "@/lib/utils"
+import { Card, CardContent } from "@/components/ui/card"
 
 interface StatCardProps {
   label: string
@@ -12,23 +12,30 @@ interface StatCardProps {
 
 export function StatCard({ label, value, subValue, trend, icon }: StatCardProps) {
   return (
-    <div className="p-6 border border-border bg-card/10 rounded-xl hover:bg-card/20 transition-all flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{label}</span>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
-      </div>
+    <Card className="flex-1 bg-[#161B22] border-2 border-border/10 rounded-2xl flex flex-col justify-between hover:border-white/20 transition-all duration-500 group cursor-default shadow-2xl overflow-hidden p-0">
+      <CardContent className="p-8 flex flex-col justify-between h-full space-y-8">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase font-black tracking-[0.3em] text-slate-400 group-hover:text-white transition-colors">{label}</span>
+          {icon && <div className="text-white/10 group-hover:text-[#35D07F] group-hover:scale-110 transition-all duration-500">{icon}</div>}
+        </div>
 
-      <div className="space-y-1">
-        <div className="flex flex-col items-baseline justify-between gap-1">
-          <span className="text-2xl font-bold text-white tracking-tight">{value}</span>
+        <div className="flex items-end justify-between gap-4">
+          <span className="text-5xl font-black text-white tracking-tighter group-hover:text-white transition-colors duration-500 uppercase">{value}</span>
           {trend && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-sm ${trend.positive ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
-               {trend.positive ? '+' : ''}{trend.value}
-            </span>
+            <div className="flex flex-col items-end pb-1">
+              <span className={cn(
+                "text-[10px] font-black uppercase tracking-[0.1em] px-2 py-1 rounded-md border",
+                trend.positive 
+                  ? "bg-[#35D07F]/10 text-[#35D07F] border-[#35D07F]/20" 
+                  : "bg-destructive/20 text-destructive border-destructive/20"
+              )}>
+                 {trend.positive ? '↑' : '↓'} {trend.value}
+              </span>
+              <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mt-3 group-hover:text-slate-400 transition-colors">SYNCED</span>
+            </div>
           )}
         </div>
-        {subValue && <span className="text-xs text-muted-foreground">{subValue}</span>}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
